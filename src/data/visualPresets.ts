@@ -1,0 +1,164 @@
+import type { VisualPreset } from "../types";
+
+export const visualPresets: VisualPreset[] = [
+  {
+    id: "quiet-practical",
+    name: "Quiet Practical",
+    description: {
+      ja: "静かで実務的。余白を保ちつつ、迷わず使える画面。",
+      en: "Quiet and practical. Spacious, readable, and easy to operate.",
+    },
+    tags: ["quiet", "practical", "spacious", "low-noise", "human"],
+    preview: {
+      background: "#F7F4EF",
+      surface: "#FFFFFF",
+      text: "#27231F",
+      muted: "#81776D",
+      accent: "#C46A32",
+      radius: "8px",
+      density: "low",
+    },
+    structureHints: {
+      density: "low",
+      rhythm: "calm work surface",
+      spacingScale: "large",
+      radiusScale: "balanced",
+      shadow: "soft",
+      motion: "subtle-fade",
+    },
+  },
+  {
+    id: "warm-minimal",
+    name: "Warm Minimal",
+    description: {
+      ja: "最小限だけど冷たくない。言葉と余白を大事にする。",
+      en: "Minimal without feeling cold. Text, space, and warmth stay in balance.",
+    },
+    tags: ["warm", "minimal", "quiet", "soft", "focused"],
+    preview: {
+      background: "#FBF7F0",
+      surface: "#FFFDF8",
+      text: "#302B25",
+      muted: "#877B6E",
+      accent: "#B8623D",
+      radius: "6px",
+      density: "low",
+    },
+    structureHints: {
+      density: "low",
+      rhythm: "slow reading rhythm",
+      spacingScale: "large",
+      radiusScale: "soft",
+      shadow: "none",
+      motion: "subtle-fade",
+    },
+  },
+  {
+    id: "studio-editorial",
+    name: "Studio Editorial",
+    description: {
+      ja: "編集室のように整った強弱。見出しと写真領域が映える。",
+      en: "Editorial contrast with studio-like order and clear content hierarchy.",
+    },
+    tags: ["editorial", "structured", "confident", "spacious", "sharp"],
+    preview: {
+      background: "#F4F1EC",
+      surface: "#FFFFFF",
+      text: "#191716",
+      muted: "#706A62",
+      accent: "#9E5136",
+      radius: "4px",
+      density: "medium",
+    },
+    structureHints: {
+      density: "medium",
+      rhythm: "editorial contrast",
+      spacingScale: "balanced",
+      radiusScale: "sharp",
+      shadow: "editorial",
+      motion: "editorial-shift",
+    },
+  },
+  {
+    id: "clean-saas",
+    name: "Clean SaaS",
+    description: {
+      ja: "道具として明快。青くなりすぎない、業務向けの整然さ。",
+      en: "Clear product utility with restrained, non-blue SaaS order.",
+    },
+    tags: ["clean", "systematic", "practical", "readable", "steady"],
+    preview: {
+      background: "#F6F7F5",
+      surface: "#FFFFFF",
+      text: "#232725",
+      muted: "#6B716E",
+      accent: "#A75D3A",
+      radius: "6px",
+      density: "medium",
+    },
+    structureHints: {
+      density: "medium",
+      rhythm: "task-oriented grid",
+      spacingScale: "balanced",
+      radiusScale: "balanced",
+      shadow: "soft",
+      motion: "steady",
+    },
+  },
+  {
+    id: "dark-calm",
+    name: "Dark Calm",
+    description: {
+      ja: "暗めでも重くしすぎない。集中と静けさを優先する。",
+      en: "Dark, calm, and focused without turning heavy or dramatic.",
+    },
+    tags: ["dark", "calm", "focused", "quiet", "low-noise"],
+    preview: {
+      background: "#0B0D10",
+      surface: "#151A20",
+      text: "#F5F7FA",
+      muted: "#9CA3AF",
+      accent: "#C46A32",
+      radius: "8px",
+      density: "low",
+    },
+    structureHints: {
+      density: "low",
+      rhythm: "focused dark workspace",
+      spacingScale: "large",
+      radiusScale: "balanced",
+      shadow: "calm",
+      motion: "subtle-fade",
+    },
+  },
+  {
+    id: "natural-soft",
+    name: "Natural Soft",
+    description: {
+      ja: "自然でやわらかい。説明よりも空気感が先に伝わる。",
+      en: "Natural and soft, with atmosphere arriving before explanation.",
+    },
+    tags: ["natural", "soft", "warm", "organic", "human"],
+    preview: {
+      background: "#F3F5EF",
+      surface: "#FCFCF7",
+      text: "#273027",
+      muted: "#73806F",
+      accent: "#7E6946",
+      radius: "8px",
+      density: "low",
+    },
+    structureHints: {
+      density: "low",
+      rhythm: "natural open flow",
+      spacingScale: "large",
+      radiusScale: "soft",
+      shadow: "soft",
+      motion: "subtle-fade",
+    },
+  },
+];
+
+export function getVisualPreset(id: string): VisualPreset {
+  return visualPresets.find((preset) => preset.id === id) ?? visualPresets[0];
+}
