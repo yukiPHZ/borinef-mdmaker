@@ -1,14 +1,19 @@
-import type { ColorPalette, DesignStructure, VisualPreset } from "../types";
+import type { ColorPalette, DesignStructure, MakerState, VisualPreset } from "../types";
 
 interface BuildDesignMdOptions {
+  state: MakerState;
   structure: DesignStructure;
   visualPreset: VisualPreset;
   colorPalette: ColorPalette;
 }
 
 export function buildDesignMd(options: BuildDesignMdOptions): string {
-  const { structure, visualPreset, colorPalette } = options;
+  const { state, structure, visualPreset, colorPalette } = options;
   const tokens = structure.color.tokens;
+  const conflict = state.conflict;
+  const conflictReasons = conflict?.reasons.length
+    ? conflict.reasons.map((reason) => `- ${reason}`).join("\n")
+    : "- No significant conflict was detected.";
 
   return `# Design Source of Truth
 
@@ -23,6 +28,8 @@ ${structure.visual_tone.map((tone) => `- ${tone}`).join("\n")}
 
 Selected visual preset: ${visualPreset.name}
 Selected color palette: ${colorPalette.name}
+Translation mode: ${state.translationMode}
+Interpreted feeling tags: ${state.interpretedFeelingTags.join(", ") || "none"}
 
 ## Color System
 
@@ -37,16 +44,35 @@ Use the selected color tokens as the source of truth.
 
 ## Typography
 
-- heading: ${structure.typography.heading}
-- body: ${structure.typography.body}
+- heading style: ${structure.typography.headingStyle}
+- body style: ${structure.typography.bodyStyle}
+- recommended stack: ${structure.typography.recommendedStack}
 - heading weight: ${structure.typography.weightHeading}
 - body weight: ${structure.typography.weightBody}
+
+## Type Scale
+
+- hero: ${structure.typography.fontSize.hero}
+- h1: ${structure.typography.fontSize.h1}
+- h2: ${structure.typography.fontSize.h2}
+- h3: ${structure.typography.fontSize.h3}
+- body: ${structure.typography.fontSize.body}
+- small: ${structure.typography.fontSize.small}
+- heading line-height: ${structure.typography.lineHeight.heading}
+- body line-height: ${structure.typography.lineHeight.body}
 
 ## Layout
 
 - density: ${structure.layout.density}
 - max width: ${structure.layout.max_width}
 - rhythm: ${structure.layout.rhythm}
+
+## Responsive Behavior
+
+- Keep the primary content readable on mobile before adding side-by-side layout.
+- Use a single-column flow below tablet widths.
+- Preserve touch targets of at least 44px height.
+- Avoid horizontal scrolling caused by code blocks, long labels, or fixed-width panels.
 
 ## Spacing
 
@@ -83,6 +109,39 @@ Avoid aggressive animations.
 - buttons: ${structure.components.buttons}
 - cards: ${structure.components.cards}
 - forms: ${structure.components.forms}
+
+## Accessibility
+
+- Maintain visible focus states for every interactive element.
+- Keep text contrast readable against the selected surface and background colors.
+- Do not rely on color alone to communicate state.
+- Pair icon-only controls with accessible labels.
+- Respect reduced-motion preferences.
+
+## Interaction States
+
+- Hover states should be quiet and restrained.
+- Focus states should be clear but not visually aggressive.
+- Disabled states should remain readable and visibly inactive.
+- Loading or pending states should not shift the surrounding layout.
+
+## Implementation Guardrails
+
+- Map these tokens into the existing design system before creating new style primitives.
+- Keep changes incremental and reviewable.
+- Avoid unrelated layout rewrites when applying this visual source of truth.
+- Do not introduce a parallel color palette.
+- Do not add decorative gradients or noisy motion unless explicitly required by the selected tone.
+
+## Conflict Resolution Notes
+
+- conflict level: ${conflict?.level ?? "none"}
+- translation mode: ${state.translationMode}
+- summary: ${conflict?.summary ?? "No significant conflict was detected."}
+
+${conflictReasons}
+
+${structure.translation.notes.map((note) => `- ${note}`).join("\n")}
 
 ## Do
 

@@ -25,6 +25,9 @@ export const visualPresets: VisualPreset[] = [
       radiusScale: "balanced",
       shadow: "soft",
       motion: "subtle-fade",
+      headingStyle: "neutral-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "Inter, system-ui, sans-serif",
     },
   },
   {
@@ -51,6 +54,9 @@ export const visualPresets: VisualPreset[] = [
       radiusScale: "soft",
       shadow: "none",
       motion: "subtle-fade",
+      headingStyle: "humanist-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "Avenir Next, Yu Gothic, system-ui, sans-serif",
     },
   },
   {
@@ -77,6 +83,9 @@ export const visualPresets: VisualPreset[] = [
       radiusScale: "sharp",
       shadow: "editorial",
       motion: "editorial-shift",
+      headingStyle: "editorial-serif",
+      bodyStyle: "neutral-sans",
+      recommendedStack: "Georgia, Times New Roman, serif",
     },
   },
   {
@@ -103,6 +112,9 @@ export const visualPresets: VisualPreset[] = [
       radiusScale: "balanced",
       shadow: "soft",
       motion: "steady",
+      headingStyle: "neutral-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "Inter, system-ui, sans-serif",
     },
   },
   {
@@ -129,6 +141,9 @@ export const visualPresets: VisualPreset[] = [
       radiusScale: "balanced",
       shadow: "calm",
       motion: "subtle-fade",
+      headingStyle: "system-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "system-ui, sans-serif",
     },
   },
   {
@@ -155,6 +170,9 @@ export const visualPresets: VisualPreset[] = [
       radiusScale: "soft",
       shadow: "soft",
       motion: "subtle-fade",
+      headingStyle: "humanist-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "Avenir Next, Hiragino Sans, system-ui, sans-serif",
     },
   },
 ];

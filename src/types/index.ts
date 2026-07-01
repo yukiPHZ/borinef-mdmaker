@@ -2,6 +2,24 @@ export type LanguageCode = "ja" | "en";
 
 export type MakerKind = "design.md";
 
+export type TranslationMode = "prefer_feeling" | "prefer_visual" | "harmonize";
+
+export type ConflictLevel = "none" | "low" | "medium" | "high";
+
+export type TypographyStyle =
+  | "neutral-sans"
+  | "editorial-serif"
+  | "humanist-sans"
+  | "system-sans";
+
+export interface TranslationConflict {
+  hasConflict: boolean;
+  level: ConflictLevel;
+  summary: string;
+  reasons: string[];
+  suggestedModes: TranslationMode[];
+}
+
 export interface ColorTokens {
   background: string;
   surface: string;
@@ -32,6 +50,9 @@ export interface VisualPreset {
     radiusScale: "soft" | "balanced" | "sharp";
     shadow: "none" | "soft" | "editorial" | "calm";
     motion: "subtle-fade" | "steady" | "editorial-shift";
+    headingStyle: TypographyStyle;
+    bodyStyle: TypographyStyle;
+    recommendedStack: string;
   };
 }
 
@@ -72,8 +93,23 @@ export interface DesignStructure {
   typography: {
     heading: string;
     body: string;
+    headingStyle: TypographyStyle;
+    bodyStyle: TypographyStyle;
+    recommendedStack: string;
     weightHeading: number;
     weightBody: number;
+    fontSize: {
+      hero: string;
+      h1: string;
+      h2: string;
+      h3: string;
+      body: string;
+      small: string;
+    };
+    lineHeight: {
+      heading: string;
+      body: string;
+    };
   };
   components: {
     buttons: string;
@@ -84,6 +120,12 @@ export interface DesignStructure {
     palette_name: string;
     tokens: ColorTokens;
   };
+  translation: {
+    mode: TranslationMode;
+    interpreted_tags: string[];
+    conflict_level: ConflictLevel;
+    notes: string[];
+  };
 }
 
 export interface MakerState {
@@ -93,6 +135,9 @@ export interface MakerState {
   feelingText: string;
   selectedVisualPreset: string;
   selectedColorPalette: string;
+  interpretedFeelingTags: string[];
+  translationMode: TranslationMode;
+  conflict?: TranslationConflict;
   structure: DesignStructure;
 }
 

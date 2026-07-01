@@ -23,6 +23,7 @@ export function buildGeneratedFiles(state: MakerState): GeneratedFiles {
 
   return {
     "design.md": buildDesignMd({
+      state,
       structure: state.structure,
       visualPreset,
       colorPalette,

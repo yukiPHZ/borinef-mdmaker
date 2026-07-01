@@ -2,22 +2,33 @@ import { colorPalettes, getColorPalette } from "./data/colorPalettes";
 import { sampleFeelingEn, sampleFeelingJa } from "./data/sampleOutputs";
 import { getVisualPreset, visualPresets } from "./data/visualPresets";
 import { getDictionary } from "./i18n";
-import type { DesignStructure, LanguageCode, MakerState } from "./types";
-import { buildFallbackStructure, mergeApiStructure, structureToYaml } from "./engine/translateFeeling";
+import type { DesignStructure, LanguageCode, MakerState, TranslationConflict, TranslationMode } from "./types";
+import {
+  buildFallbackStructure,
+  detectTranslationConflict,
+  extractToneKeywords,
+  mergeApiStructure,
+  normalizeConflict,
+  structureToYaml,
+} from "./engine/translateFeeling";
+import { initAnalytics, trackEvent } from "./analytics";
 import { buildGeneratedFiles, downloadExportZip, downloadTextFile } from "./zip/buildZip";
 
 let rootElement: HTMLElement;
 let state = createInitialState("ja");
 let statusMessage = "";
-let structureSource = "fallback";
+let nextActionMessage = "";
+let lastConflictEventKey = "";
 const rejectedVisuals = new Set<string>();
 
 export function mountApp(root: HTMLElement): void {
   rootElement = root;
+  initAnalytics();
   rootElement.addEventListener("click", handleClick);
   rootElement.addEventListener("input", handleInput);
   rootElement.addEventListener("change", handleChange);
   render();
+  trackEvent("mdmaker_view", analyticsStateParams());
 }
 
 function createInitialState(language: LanguageCode): MakerState {
@@ -28,11 +39,19 @@ function createInitialState(language: LanguageCode): MakerState {
     feelingText: "",
     selectedVisualPreset: "quiet-practical",
     selectedColorPalette: "warm-neutral",
+    interpretedFeelingTags: [] as string[],
+    translationMode: "harmonize" as const,
   };
+  const conflict = detectTranslationConflict({
+    interpretedFeelingTags: baseState.interpretedFeelingTags,
+    selectedVisualPreset: baseState.selectedVisualPreset,
+    selectedColorPalette: baseState.selectedColorPalette,
+  });
 
   return {
     ...baseState,
-    structure: buildFallbackStructure(baseState),
+    conflict,
+    structure: buildFallbackStructure({ ...baseState, conflict }),
   };
 }
 
@@ -61,6 +80,7 @@ function render(): void {
             <p class="eyebrow">${t.designOnly}</p>
             <h1 id="intro-title">${t.heroTitle}</h1>
             <p>${t.heroLead}</p>
+            <p class="pricing-summary">${t.pricingSummary}</p>
             <button class="primary-button" type="button" data-action="scroll-maker">${t.openMaker}</button>
           </div>
           <div class="maker-switcher" aria-label="maker selector">
@@ -114,10 +134,11 @@ function render(): void {
                     <p class="eyebrow">Structure</p>
                     <h3>${t.structureTitle}</h3>
                   </div>
-                  <span class="source-pill" id="sourcePill">${structureSource}</span>
+                  <span class="source-pill" id="sourcePill">${t.standardConversion}</span>
                 </div>
                 <pre class="code-preview" id="structurePreview"></pre>
                 <button class="secondary-button" type="button" data-action="copy-structure">${t.copyStructure}</button>
+                <p class="next-action" id="structureNextAction"></p>
               </section>
 
               <section class="output-panel">
@@ -129,6 +150,7 @@ function render(): void {
                 </div>
                 <pre class="code-preview code-preview--large" id="designPreview"></pre>
                 <button class="primary-button primary-button--full" type="button" data-action="copy-design">${t.copyDesign}</button>
+                <p class="next-action" id="designNextAction"></p>
               </section>
             </aside>
           </div>
@@ -160,6 +182,8 @@ function renderFeelingPanel(): string {
       <p class="panel-note">${t.feelingGuide}</p>
       <label class="field-label" for="feelingInput">Feeling</label>
       <textarea id="feelingInput" rows="5" placeholder="${placeholder}">${escapeHtml(state.feelingText)}</textarea>
+      <div class="feeling-tags" id="feelingTags"></div>
+      <div class="conflict-box" id="conflictBox"></div>
       <button class="secondary-button" type="button" data-action="translate-api">${t.translateButton}</button>
       <p class="status-line" id="statusLine" role="status" aria-live="polite">${statusMessage}</p>
     </section>
@@ -334,6 +358,7 @@ function handleClick(event: MouseEvent): void {
 
   if (action === "toggle-language") {
     state.language = state.language === "ja" ? "en" : "ja";
+    trackEvent("language_switch", analyticsStateParams());
     render();
     return;
   }
@@ -347,6 +372,7 @@ function handleClick(event: MouseEvent): void {
     rejectedVisuals.delete(id);
     state.selectedVisualPreset = id;
     refreshFallbackStructure();
+    trackEvent("visual_preset_select", analyticsStateParams());
     render();
     return;
   }
@@ -358,6 +384,7 @@ function handleClick(event: MouseEvent): void {
       state.selectedVisualPreset = nextPreset.id;
     }
     refreshFallbackStructure();
+    trackEvent("visual_preset_select", analyticsStateParams());
     render();
     return;
   }
@@ -365,7 +392,16 @@ function handleClick(event: MouseEvent): void {
   if (action === "select-palette" && id) {
     state.selectedColorPalette = id;
     refreshFallbackStructure();
+    trackEvent("color_palette_select", analyticsStateParams());
     render();
+    return;
+  }
+
+  if (action === "select-mode" && isTranslationMode(id)) {
+    state.translationMode = id;
+    refreshFallbackStructure();
+    trackEvent("translation_mode_select", analyticsStateParams());
+    updateGeneratedViews();
     return;
   }
 
@@ -392,6 +428,7 @@ function handleClick(event: MouseEvent): void {
   if (action === "download-settings") {
     const files = buildGeneratedFiles(state);
     downloadTextFile("settings.json", files["settings.json"], "application/json");
+    trackEvent("settings_download", analyticsStateParams());
   }
 }
 
@@ -406,12 +443,24 @@ function handleChange(event: Event): void {
 }
 
 function refreshFallbackStructure(): void {
+  const interpretedFeelingTags = extractToneKeywords(state.feelingText);
+  const conflict = detectTranslationConflict({
+    interpretedFeelingTags,
+    selectedVisualPreset: state.selectedVisualPreset,
+    selectedColorPalette: state.selectedColorPalette,
+  });
+
+  state.interpretedFeelingTags = interpretedFeelingTags;
+  state.conflict = conflict;
   state.structure = buildFallbackStructure({
     feelingText: state.feelingText,
     selectedVisualPreset: state.selectedVisualPreset,
     selectedColorPalette: state.selectedColorPalette,
+    interpretedFeelingTags,
+    translationMode: state.translationMode,
+    conflict,
   });
-  structureSource = "fallback";
+  trackConflictIfNeeded();
 }
 
 async function translateWithApi(): Promise<void> {
@@ -427,8 +476,10 @@ async function translateWithApi(): Promise<void> {
       body: JSON.stringify({
         language: state.language,
         feelingText: state.feelingText,
+        interpretedFeelingTags: state.interpretedFeelingTags,
         selectedVisualPreset: state.selectedVisualPreset,
         selectedColorPalette: state.selectedColorPalette,
+        translationMode: state.translationMode,
       }),
     });
 
@@ -436,20 +487,26 @@ async function translateWithApi(): Promise<void> {
       throw new Error("translate endpoint unavailable");
     }
 
-    const data = (await response.json()) as { ok?: boolean; source?: string; structure?: Partial<DesignStructure> };
+    const data = (await response.json()) as {
+      ok?: boolean;
+      source?: string;
+      structure?: Partial<DesignStructure>;
+      conflict?: Partial<TranslationConflict>;
+    };
     if (!data.ok || !data.structure) {
       throw new Error("translate fallback used");
     }
 
     state.structure = mergeApiStructure(fallback, data.structure);
-    structureSource = data.source ?? "api";
-    setStatus(t.apiUsed);
+    state.conflict = normalizeConflict(data.conflict) ?? state.conflict;
+    setStatus(t.standardConversion);
   } catch {
     state.structure = fallback;
-    structureSource = "fallback";
-    setStatus(t.fallbackUsed);
+    setStatus(t.standardConversion);
   }
 
+  trackEvent("feeling_translate", analyticsStateParams());
+  trackConflictIfNeeded();
   updateGeneratedViews();
 }
 
@@ -457,17 +514,26 @@ async function copyDesignMd(): Promise<void> {
   const t = getDictionary(state.language);
   const files = buildGeneratedFiles(state);
   const ok = await copyText(files["design.md"]);
+  nextActionMessage = ok ? t.designNextAction : "";
   setStatus(ok ? t.copied : t.copyFailed);
+  if (ok) {
+    trackEvent("design_md_copy", analyticsStateParams());
+  }
 }
 
 async function copyStructure(): Promise<void> {
   const t = getDictionary(state.language);
   const ok = await copyText(structureToYaml(state.structure));
+  nextActionMessage = ok ? t.structureNextAction : "";
   setStatus(ok ? t.copied : t.copyFailed);
+  if (ok) {
+    trackEvent("structure_copy", analyticsStateParams());
+  }
 }
 
 async function requestCheckoutOrDownload(): Promise<void> {
   const t = getDictionary(state.language);
+  trackEvent("zip_export_click", analyticsStateParams());
 
   try {
     const response = await fetch("/api/create-checkout-session", {
@@ -493,6 +559,7 @@ async function requestCheckoutOrDownload(): Promise<void> {
   }
 
   await downloadExportZip(state);
+  trackEvent("zip_export_download", analyticsStateParams());
   setStatus(t.checkoutUnavailable);
 }
 
@@ -508,18 +575,36 @@ async function loadSettingsFile(file: File): Promise<void> {
     const nextPalette = parsed.selectedColorPalette
       ? getColorPalette(parsed.selectedColorPalette).id
       : state.selectedColorPalette;
+    const nextFeelingText = typeof parsed.feelingText === "string" ? parsed.feelingText : "";
+    const nextTags = Array.isArray(parsed.interpretedFeelingTags)
+      ? parsed.interpretedFeelingTags.filter((tag): tag is string => typeof tag === "string")
+      : extractToneKeywords(nextFeelingText);
+    const nextMode = isTranslationMode(parsed.translationMode) ? parsed.translationMode : "harmonize";
+    const nextConflict =
+      normalizeConflict(parsed.conflict) ??
+      detectTranslationConflict({
+        interpretedFeelingTags: nextTags,
+        selectedVisualPreset: nextPreset,
+        selectedColorPalette: nextPalette,
+      });
 
     state = {
       version: "1.0.0",
       language: nextLanguage,
       maker: "design.md",
-      feelingText: typeof parsed.feelingText === "string" ? parsed.feelingText : "",
+      feelingText: nextFeelingText,
       selectedVisualPreset: nextPreset,
       selectedColorPalette: nextPalette,
+      interpretedFeelingTags: nextTags,
+      translationMode: nextMode,
+      conflict: nextConflict,
       structure: buildFallbackStructure({
-        feelingText: typeof parsed.feelingText === "string" ? parsed.feelingText : "",
+        feelingText: nextFeelingText,
         selectedVisualPreset: nextPreset,
         selectedColorPalette: nextPalette,
+        interpretedFeelingTags: nextTags,
+        translationMode: nextMode,
+        conflict: nextConflict,
       }),
     };
 
@@ -527,8 +612,8 @@ async function loadSettingsFile(file: File): Promise<void> {
       state.structure = mergeApiStructure(state.structure, parsed.structure);
     }
 
-    structureSource = "settings";
     statusMessage = t.settingsLoaded;
+    trackEvent("settings_import", analyticsStateParams());
     render();
   } catch {
     setStatus(t.settingsFailed);
@@ -540,8 +625,13 @@ function updateGeneratedViews(): void {
   const designPreview = rootElement.querySelector<HTMLElement>("#designPreview");
   const sourcePill = rootElement.querySelector<HTMLElement>("#sourcePill");
   const statusLine = rootElement.querySelector<HTMLElement>("#statusLine");
+  const feelingTags = rootElement.querySelector<HTMLElement>("#feelingTags");
+  const conflictBox = rootElement.querySelector<HTMLElement>("#conflictBox");
+  const designNextAction = rootElement.querySelector<HTMLElement>("#designNextAction");
+  const structureNextAction = rootElement.querySelector<HTMLElement>("#structureNextAction");
 
   const files = buildGeneratedFiles(state);
+  const t = getDictionary(state.language);
 
   if (structurePreview) {
     structurePreview.textContent = structureToYaml(state.structure);
@@ -552,17 +642,122 @@ function updateGeneratedViews(): void {
   }
 
   if (sourcePill) {
-    sourcePill.textContent = structureSource;
+    sourcePill.textContent = t.standardConversion;
   }
 
   if (statusLine) {
     statusLine.textContent = statusMessage;
+  }
+
+  if (feelingTags) {
+    feelingTags.innerHTML = renderFeelingTags();
+  }
+
+  if (conflictBox) {
+    conflictBox.innerHTML = renderConflictBox();
+  }
+
+  if (designNextAction) {
+    designNextAction.textContent = nextActionMessage === t.designNextAction ? nextActionMessage : "";
+  }
+
+  if (structureNextAction) {
+    structureNextAction.textContent = nextActionMessage === t.structureNextAction ? nextActionMessage : "";
   }
 }
 
 function setStatus(message: string): void {
   statusMessage = message;
   updateGeneratedViews();
+}
+
+function renderFeelingTags(): string {
+  const t = getDictionary(state.language);
+  const tags = state.interpretedFeelingTags;
+
+  if (!tags.length) {
+    return `<p>${t.noInterpretedFeeling}</p>`;
+  }
+
+  return `
+    <p>${t.interpretedFeeling}: ${tags.join(" / ")}</p>
+    <div class="tag-row">
+      ${tags.map((tag) => `<span>${tag}</span>`).join("")}
+    </div>
+  `;
+}
+
+function renderConflictBox(): string {
+  const t = getDictionary(state.language);
+  const conflict = state.conflict;
+
+  if (!conflict?.hasConflict) {
+    return "";
+  }
+
+  const modes: Array<{ id: TranslationMode; label: string }> = [
+    { id: "prefer_feeling", label: t.preferFeeling },
+    { id: "prefer_visual", label: t.preferVisual },
+    { id: "harmonize", label: t.harmonize },
+  ];
+
+  return `
+    <div class="conflict-card">
+      <div>
+        <strong>${t.conflictTitle}</strong>
+        <p>${t.conflictMessage}</p>
+      </div>
+      <div class="mode-row">
+        ${modes
+          .map(
+            (mode) => `
+              <button
+                class="${state.translationMode === mode.id ? "is-active" : ""}"
+                type="button"
+                data-action="select-mode"
+                data-id="${mode.id}"
+              >${mode.label}</button>
+            `,
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function isTranslationMode(value: unknown): value is TranslationMode {
+  return value === "prefer_feeling" || value === "prefer_visual" || value === "harmonize";
+}
+
+function analyticsStateParams() {
+  return {
+    selectedVisualPreset: state.selectedVisualPreset,
+    selectedColorPalette: state.selectedColorPalette,
+    translationMode: state.translationMode,
+    conflictLevel: state.conflict?.level ?? "none",
+    language: state.language,
+  };
+}
+
+function trackConflictIfNeeded(): void {
+  if (!state.conflict?.hasConflict) {
+    return;
+  }
+
+  const key = [
+    state.selectedVisualPreset,
+    state.selectedColorPalette,
+    state.translationMode,
+    state.conflict.level,
+    state.interpretedFeelingTags.join(","),
+  ].join("|");
+
+  if (key === lastConflictEventKey) {
+    return;
+  }
+
+  lastConflictEventKey = key;
+  trackEvent("conflict_detected", analyticsStateParams());
 }
 
 async function copyText(text: string): Promise<boolean> {

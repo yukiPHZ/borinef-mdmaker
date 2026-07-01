@@ -71,6 +71,18 @@ theme: {
     },
     boxShadow: {
       card: "${state.structure.shadow.card}"
+    },
+    fontSize: {
+      hero: "${state.structure.typography.fontSize.hero}",
+      h1: "${state.structure.typography.fontSize.h1}",
+      h2: "${state.structure.typography.fontSize.h2}",
+      h3: "${state.structure.typography.fontSize.h3}",
+      body: "${state.structure.typography.fontSize.body}",
+      small: "${state.structure.typography.fontSize.small}"
+    },
+    lineHeight: {
+      heading: "${state.structure.typography.lineHeight.heading}",
+      body: "${state.structure.typography.lineHeight.body}"
     }
   }
 }
@@ -79,18 +91,46 @@ theme: {
 }
 
 export function buildCodexPrompt(options: PromptOptions): string {
-  return buildAgentPrompt("Codex", options);
+  return buildAgentPrompt(
+    "Codex",
+    options,
+    `## Codex Working Rules
+
+- Inspect the existing repository before editing.
+- Do not replace the current framework or build system without approval.
+- Apply design tokens incrementally.
+- Run the existing type-check and build commands.
+- Report changed files and verification results.`,
+  );
 }
 
 export function buildClaudeCodePrompt(options: PromptOptions): string {
-  return buildAgentPrompt("Claude Code", options);
+  return buildAgentPrompt(
+    "Claude Code",
+    options,
+    `## Claude Code Working Rules
+
+- Read project instructions and existing design files first.
+- Create a short implementation plan before broad UI changes.
+- Keep changes minimal and reversible.
+- Preserve existing behavior while applying the visual source of truth.`,
+  );
 }
 
 export function buildCursorPrompt(options: PromptOptions): string {
-  return buildAgentPrompt("Cursor", options);
+  return buildAgentPrompt(
+    "Cursor",
+    options,
+    `## Cursor Working Rules
+
+- Use this file as persistent project context.
+- Apply tokens to existing components incrementally.
+- Prefer small, reviewable edits.
+- Do not introduce parallel style systems.`,
+  );
 }
 
-function buildAgentPrompt(agentName: string, options: PromptOptions): string {
+function buildAgentPrompt(agentName: string, options: PromptOptions, agentRules: string): string {
   const { state, visualPreset, colorPalette } = options;
 
   return `# ${agentName} UI Implementation Prompt
@@ -103,6 +143,9 @@ Treat tokens.json and tokens.css as implementation constraints.
 - Visual preset: ${visualPreset.name}
 - Color palette: ${colorPalette.name}
 - Maker: ${state.maker}
+- Translation mode: ${state.translationMode}
+- Conflict level: ${state.conflict?.level ?? "none"}
+- Interpreted feeling tags: ${state.interpretedFeelingTags.join(", ") || "none"}
 
 ## AI Native Structure
 
@@ -117,5 +160,7 @@ ${structureToYaml(state.structure)}
 - Keep layout calm, practical, readable, and low-noise.
 - Avoid decorative card nesting and aggressive motion.
 - If a local design system exists, map these tokens into that system instead of creating parallel styles.
+
+${agentRules}
 `;
 }

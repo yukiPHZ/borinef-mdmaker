@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="BORINEF Labs md maker">
+  <rect width="1200" height="630" fill="#F7F4EF"/>
+  <path d="M0 0h1200v630H0z" fill="#F7F4EF"/>
+  <path d="M84 104h1032v422H84z" fill="#FFFDF9" stroke="#DED7CD" stroke-width="2"/>
+  <text x="120" y="174" fill="#8F4428" font-family="Arial, sans-serif" font-size="28" font-weight="700">BORINEF Labs</text>
+  <text x="120" y="298" fill="#25211D" font-family="Arial, sans-serif" font-size="92" font-weight="700">md maker</text>
+  <text x="120" y="382" fill="#756D64" font-family="Arial, sans-serif" font-size="34">Translate human feeling into AI-native structure.</text>
+  <rect x="120" y="438" width="260" height="58" rx="10" fill="#2F2923"/>
+  <text x="148" y="476" fill="#FFF8EF" font-family="Arial, sans-serif" font-size="24">design.md maker</text>
+</svg>

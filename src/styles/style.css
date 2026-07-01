@@ -241,6 +241,21 @@ h1 {
   font-size: clamp(1rem, 2.2vw, 1.22rem);
 }
 
+.pricing-summary {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 34px;
+  align-items: center;
+  margin-bottom: 18px !important;
+  padding: 6px 10px;
+  border: 1px solid rgba(196, 106, 50, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 250, 244, 0.72);
+  color: var(--ember-deep) !important;
+  font-size: 0.88rem !important;
+}
+
 .maker-switcher {
   display: grid;
   gap: 10px;
@@ -425,6 +440,79 @@ textarea:focus {
   margin: 10px 0 0;
   color: var(--forest);
   font-size: 0.82rem;
+}
+
+.feeling-tags {
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.feeling-tags p {
+  margin: 0 0 6px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-row span {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid rgba(89, 109, 85, 0.24);
+  border-radius: 999px;
+  background: rgba(244, 246, 241, 0.82);
+  color: var(--forest);
+  line-height: 1.2;
+}
+
+.conflict-card {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(196, 106, 50, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 250, 244, 0.82);
+}
+
+.conflict-card strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ember-deep);
+  font-size: 0.92rem;
+}
+
+.conflict-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.mode-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.mode-row button {
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.mode-row button.is-active {
+  border-color: rgba(196, 106, 50, 0.58);
+  background: #fff7ef;
+  color: var(--ember-deep);
 }
 
 .preset-list,
@@ -718,6 +806,13 @@ textarea:focus {
   margin-top: 10px;
 }
 
+.next-action {
+  margin: 10px 0 0;
+  color: var(--forest);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
 .site-footer {
   display: flex;
   justify-content: space-between;
@@ -813,6 +908,7 @@ textarea:focus {
   .maker-switcher,
   .settings-row,
   .choice-row,
+  .mode-row,
   .preview-content {
     grid-template-columns: 1fr;
   }

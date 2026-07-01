@@ -15,6 +15,8 @@ export function buildTokensObject(structure: DesignStructure) {
       card: structure.shadow.card,
     },
     typography: structure.typography,
+    fontSize: structure.typography.fontSize,
+    lineHeight: structure.typography.lineHeight,
     motion: {
       duration: structure.motion.duration,
       easing: "ease-out",

@@ -1,12 +1,23 @@
 import { getColorPalette } from "../data/colorPalettes";
 import { getVisualPreset } from "../data/visualPresets";
-import type { ColorPalette, DesignStructure, VisualPreset } from "../types";
+import type {
+  ColorPalette,
+  DesignStructure,
+  TranslationConflict,
+  TranslationMode,
+  VisualPreset,
+} from "../types";
 
 interface BuildStructureOptions {
   feelingText: string;
   selectedVisualPreset: string;
   selectedColorPalette: string;
+  interpretedFeelingTags?: string[];
+  translationMode?: TranslationMode;
+  conflict?: TranslationConflict;
 }
+
+const defaultMode: TranslationMode = "harmonize";
 
 const keywordRules: Array<{ value: string; patterns: string[] }> = [
   { value: "quiet", patterns: ["quiet", "calm", "silent", "静", "穏", "落ち着"] },
@@ -23,7 +34,17 @@ const keywordRules: Array<{ value: string; patterns: string[] }> = [
   { value: "low-noise", patterns: ["low-noise", "noise", "静音", "うるさく", "ノイズ"] },
   { value: "human", patterns: ["human", "person", "人間", "人"] },
   { value: "focused", patterns: ["focused", "focus", "集中"] },
+  { value: "energetic", patterns: ["energetic", "energy", "熱血", "勢い", "エネルギ"] },
+  { value: "red", patterns: ["red", "crimson", "真っ赤", "赤", "紅"] },
+  { value: "passionate", patterns: ["passionate", "passion", "情熱", "熱い"] },
+  { value: "bold", patterns: ["bold", "strong", "大胆", "力強", "太い"] },
+  { value: "intense", patterns: ["intense", "aggressive", "激", "強烈"] },
 ];
+
+const intenseTags = ["energetic", "red", "passionate", "bold", "intense"];
+const quietVisualIds = ["quiet-practical", "warm-minimal"];
+const quietPaletteIds = ["warm-neutral", "soft-ink"];
+const calmFitIds = ["quiet-practical", "warm-minimal", "dark-calm"];
 
 const spacingByScale = {
   large: { section: "96px", container: "24px", card: "24px" },
@@ -39,9 +60,9 @@ const radiusByScale = {
 
 const shadowByIntensity = {
   none: "none",
-  soft: "0 10px 30px rgba(0,0,0,0.18)",
-  editorial: "0 14px 42px rgba(25,23,22,0.14)",
-  calm: "0 18px 50px rgba(0,0,0,0.34)",
+  soft: "0 8px 24px rgba(45, 41, 36, 0.08)",
+  editorial: "0 14px 42px rgba(25, 23, 22, 0.14)",
+  calm: "0 18px 50px rgba(0, 0, 0, 0.34)",
 };
 
 export function extractToneKeywords(feelingText: string): string[] {
@@ -55,19 +76,99 @@ export function extractToneKeywords(feelingText: string): string[] {
     .map((rule) => rule.value);
 }
 
+export function detectTranslationConflict(options: {
+  interpretedFeelingTags: string[];
+  selectedVisualPreset: string;
+  selectedColorPalette: string;
+}): TranslationConflict {
+  const tags = new Set(options.interpretedFeelingTags);
+  const reasons: string[] = [];
+  let level: TranslationConflict["level"] = "none";
+
+  const hasIntensity = intenseTags.some((tag) => tags.has(tag));
+  const hasQuietFit = ["quiet", "spacious", "minimal", "practical"].some((tag) => tags.has(tag));
+  const hasDark = tags.has("dark");
+  const quietVisual = quietVisualIds.includes(options.selectedVisualPreset);
+  const quietPalette = quietPaletteIds.includes(options.selectedColorPalette);
+
+  if (hasIntensity && quietVisual) {
+    level = "high";
+    reasons.push("feeling text suggests energetic, red, passionate, bold, or intense direction");
+    reasons.push(`selected visual preset is ${options.selectedVisualPreset}`);
+  }
+
+  if (hasIntensity && quietPalette) {
+    level = "high";
+    reasons.push(`selected color palette is ${options.selectedColorPalette}`);
+  }
+
+  if (hasDark && options.selectedColorPalette === "clear-light") {
+    level = level === "high" ? "high" : "medium";
+    reasons.push("feeling text suggests a dark direction");
+    reasons.push("selected color palette is clear-light");
+  }
+
+  if (level === "none" && hasQuietFit && calmFitIds.includes(options.selectedVisualPreset)) {
+    return {
+      hasConflict: false,
+      level: "none",
+      summary: "Feeling text and selected visual direction are aligned.",
+      reasons: [],
+      suggestedModes: ["harmonize"],
+    };
+  }
+
+  if (level === "none" && options.interpretedFeelingTags.length > 0) {
+    level = "low";
+    reasons.push("minor interpretation differences may exist between the feeling text and selected direction");
+  }
+
+  const hasConflict = level === "medium" || level === "high";
+
+  return {
+    hasConflict,
+    level,
+    summary: hasConflict
+      ? "The feeling text and selected visual direction point in different directions."
+      : "No significant conflict was detected.",
+    reasons,
+    suggestedModes: hasConflict ? ["prefer_feeling", "harmonize"] : ["harmonize"],
+  };
+}
+
 export function buildFallbackStructure(options: BuildStructureOptions): DesignStructure {
   const preset = getVisualPreset(options.selectedVisualPreset);
   const palette = getColorPalette(options.selectedColorPalette);
-  return buildStructureFromParts(options.feelingText, preset, palette);
+  const interpretedFeelingTags =
+    options.interpretedFeelingTags ?? extractToneKeywords(options.feelingText);
+  const conflict =
+    options.conflict ??
+    detectTranslationConflict({
+      interpretedFeelingTags,
+      selectedVisualPreset: options.selectedVisualPreset,
+      selectedColorPalette: options.selectedColorPalette,
+    });
+
+  return buildStructureFromParts({
+    feelingText: options.feelingText,
+    preset,
+    palette,
+    interpretedFeelingTags,
+    translationMode: options.translationMode ?? defaultMode,
+    conflict,
+  });
 }
 
-export function buildStructureFromParts(
-  feelingText: string,
-  preset: VisualPreset,
-  palette: ColorPalette,
-): DesignStructure {
-  const extracted = extractToneKeywords(feelingText);
-  const visualTone = uniqueList([...extracted, ...preset.tags]).slice(0, 7);
+export function buildStructureFromParts(options: {
+  feelingText: string;
+  preset: VisualPreset;
+  palette: ColorPalette;
+  interpretedFeelingTags: string[];
+  translationMode: TranslationMode;
+  conflict: TranslationConflict;
+}): DesignStructure {
+  const { preset, palette, interpretedFeelingTags, translationMode, conflict } = options;
+  const visualTone = buildVisualTone(interpretedFeelingTags, preset, translationMode, conflict);
   const spacing = spacingByScale[preset.structureHints.spacingScale];
   const radius = radiusByScale[preset.structureHints.radiusScale];
   const motionSpeed = preset.structureHints.motion === "editorial-shift" ? "medium" : "slow";
@@ -94,10 +195,25 @@ export function buildStructureFromParts(
       duration: motionSpeed === "medium" ? "360ms" : "600ms",
     },
     typography: {
-      heading: "Inter",
-      body: "Inter",
+      heading: preset.structureHints.recommendedStack,
+      body: preset.structureHints.bodyStyle === "system-sans" ? "system-ui" : preset.structureHints.recommendedStack,
+      headingStyle: preset.structureHints.headingStyle,
+      bodyStyle: preset.structureHints.bodyStyle,
+      recommendedStack: preset.structureHints.recommendedStack,
       weightHeading: preset.id === "studio-editorial" ? 760 : 700,
       weightBody: 400,
+      fontSize: {
+        hero: preset.id === "studio-editorial" ? "clamp(46px, 7vw, 88px)" : "clamp(42px, 7vw, 84px)",
+        h1: preset.id === "studio-editorial" ? "56px" : "48px",
+        h2: "32px",
+        h3: "22px",
+        body: "16px",
+        small: "13px",
+      },
+      lineHeight: {
+        heading: "1.08",
+        body: "1.8",
+      },
     },
     components: {
       buttons: "clear command buttons with restrained accent states",
@@ -107,6 +223,12 @@ export function buildStructureFromParts(
     color: {
       palette_name: palette.name,
       tokens: palette.colors,
+    },
+    translation: {
+      mode: translationMode,
+      interpreted_tags: interpretedFeelingTags,
+      conflict_level: conflict.level,
+      notes: buildTranslationNotes(interpretedFeelingTags, translationMode, conflict),
     },
   };
 }
@@ -129,6 +251,36 @@ export function mergeApiStructure(
     typography: { ...fallback.typography, ...(apiStructure.typography ?? {}) },
     components: { ...fallback.components, ...(apiStructure.components ?? {}) },
     color: fallback.color,
+    translation: { ...fallback.translation, ...(apiStructure.translation ?? {}) },
+  };
+}
+
+export function normalizeConflict(conflict: Partial<TranslationConflict> | undefined): TranslationConflict | undefined {
+  if (!conflict) {
+    return undefined;
+  }
+
+  const level: TranslationConflict["level"] =
+    conflict.level === "none" ||
+    conflict.level === "low" ||
+    conflict.level === "medium" ||
+    conflict.level === "high"
+      ? conflict.level
+      : "none";
+  const suggestedModes = Array.isArray(conflict.suggestedModes)
+    ? conflict.suggestedModes.filter((mode): mode is TranslationMode =>
+        mode === "prefer_feeling" || mode === "prefer_visual" || mode === "harmonize",
+      )
+    : [];
+
+  return {
+    hasConflict: Boolean(conflict.hasConflict),
+    level,
+    summary: typeof conflict.summary === "string" ? conflict.summary : "",
+    reasons: Array.isArray(conflict.reasons)
+      ? conflict.reasons.filter((reason): reason is string => typeof reason === "string")
+      : [],
+    suggestedModes: suggestedModes.length ? suggestedModes : ["harmonize"],
   };
 }
 
@@ -161,9 +313,84 @@ export function structureToYaml(structure: DesignStructure): string {
     `  style: ${structure.motion.style}`,
     `  duration: ${structure.motion.duration}`,
     "",
+    "typography:",
+    `  heading_style: ${structure.typography.headingStyle}`,
+    `  body_style: ${structure.typography.bodyStyle}`,
+    `  recommended_stack: ${structure.typography.recommendedStack}`,
+    "",
     "color:",
     `  palette_name: ${structure.color.palette_name}`,
+    "",
+    "translation:",
+    `  mode: ${structure.translation.mode}`,
+    `  conflict_level: ${structure.translation.conflict_level}`,
+    "  interpreted_tags:",
+    ...structure.translation.interpreted_tags.map((tag) => `    - ${tag}`),
   ].join("\n");
+}
+
+function buildVisualTone(
+  interpretedFeelingTags: string[],
+  preset: VisualPreset,
+  mode: TranslationMode,
+  conflict: TranslationConflict,
+): string[] {
+  const tags = uniqueList(interpretedFeelingTags);
+  const hasIntensity = intenseTags.some((tag) => tags.includes(tag));
+  const hasDark = tags.includes("dark");
+
+  if (mode === "prefer_feeling") {
+    return uniqueList([
+      ...tags,
+      ...(hasIntensity ? ["energetic", "bold", "passionate", "high-contrast"] : []),
+      ...(hasDark ? ["dark", "focused"] : []),
+      ...preset.tags.slice(0, 2),
+    ]).slice(0, 8);
+  }
+
+  if (mode === "prefer_visual") {
+    return uniqueList([
+      ...preset.tags,
+      ...(conflict.hasConflict ? ["selected-direction-priority"] : []),
+      ...tags.slice(0, 2),
+    ]).slice(0, 8);
+  }
+
+  if (conflict.hasConflict && hasIntensity) {
+    return uniqueList(["warm", "focused", "confident", "restrained-energy", ...preset.tags.slice(0, 3)]).slice(0, 8);
+  }
+
+  if (conflict.hasConflict && hasDark) {
+    return uniqueList(["clear", "calm", "focused", "restrained-dark", ...preset.tags.slice(0, 3)]).slice(0, 8);
+  }
+
+  return uniqueList([...tags, ...preset.tags]).slice(0, 8);
+}
+
+function buildTranslationNotes(
+  interpretedFeelingTags: string[],
+  mode: TranslationMode,
+  conflict: TranslationConflict,
+): string[] {
+  const notes = [`Translation mode: ${mode}.`];
+
+  if (interpretedFeelingTags.length) {
+    notes.push(`Interpreted feeling tags: ${interpretedFeelingTags.join(", ")}.`);
+  }
+
+  if (conflict.hasConflict) {
+    notes.push(conflict.summary);
+  }
+
+  if (mode === "prefer_visual" && conflict.hasConflict) {
+    notes.push("Original feeling text suggested a different intensity, but selected visual direction was prioritized.");
+  }
+
+  if (mode === "harmonize" && conflict.hasConflict) {
+    notes.push("The structure intentionally blends feeling intent with the selected visual and color direction.");
+  }
+
+  return notes;
 }
 
 function uniqueList(items: string[]): string[] {
