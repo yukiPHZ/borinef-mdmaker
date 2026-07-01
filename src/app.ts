@@ -22,6 +22,7 @@ let state = createInitialState("ja");
 let statusMessage = "";
 let nextActionMessage = "";
 let lastConflictEventKey = "";
+let lastExportCtaViewKey = "";
 const rejectedVisuals = new Set<string>();
 
 export function mountApp(root: HTMLElement): void {
@@ -30,6 +31,7 @@ export function mountApp(root: HTMLElement): void {
   rootElement.addEventListener("click", handleClick);
   rootElement.addEventListener("input", handleInput);
   rootElement.addEventListener("change", handleChange);
+  rootElement.addEventListener("toggle", handleToggle, true);
   render();
   trackEvent("mdmaker_view", analyticsStateParams());
 }
@@ -42,6 +44,7 @@ function createInitialState(language: LanguageCode): MakerState {
     feelingText: "",
     selectedVisualPreset: "quiet-practical",
     selectedColorPalette: "warm-neutral",
+    isCustomizedFromRecommendation: false,
     interpretedFeelingTags: [] as string[],
     translationMode: "harmonize" as const,
   };
@@ -60,7 +63,6 @@ function createInitialState(language: LanguageCode): MakerState {
 
 function render(): void {
   const t = getDictionary(state.language);
-  const price = t.price;
   document.documentElement.lang = state.language;
 
   rootElement.innerHTML = `
@@ -117,14 +119,13 @@ function render(): void {
           <div class="maker-grid">
             <aside class="input-rail" aria-label="input controls">
               ${renderFeelingPanel()}
-              ${renderVisualPanel()}
-              ${renderColorPanel()}
-              ${renderExportPanel(price)}
+              ${renderRecommendationPanel()}
+              ${renderCustomizePanel()}
             </aside>
 
-            <section class="preview-rail" aria-labelledby="preview-title">
+            <section class="preview-rail" id="selectedPreviewRail" aria-labelledby="preview-title">
               <div class="rail-title">
-                <p class="eyebrow">Step 4</p>
+                <p class="eyebrow">Step 3</p>
                 <h3 id="preview-title">${t.previewTitle}</h3>
               </div>
               ${renderLivePreview()}
@@ -152,8 +153,17 @@ function render(): void {
                   </div>
                 </div>
                 <pre class="code-preview code-preview--large" id="designPreview"></pre>
-                <button class="primary-button primary-button--full" type="button" data-action="copy-design">${t.copyDesign}</button>
+                <div class="output-action-stack">
+                  <button class="primary-button primary-button--full" type="button" data-action="copy-design">${t.copyDesign}</button>
+                  <button class="secondary-button primary-button--full" type="button" data-action="paid-export">${t.paidExport}</button>
+                </div>
+                <p class="button-note">${t.zipIncludes}</p>
                 <p class="next-action" id="designNextAction"></p>
+                <div class="settings-row">
+                  <input class="sr-only" id="settingsFile" type="file" accept=".json,application/json" />
+                  <label class="secondary-button secondary-button--file" for="settingsFile">${t.settingsUpload}</label>
+                  <button class="secondary-button" type="button" data-action="download-settings">${t.downloadSettings}</button>
+                </div>
               </section>
             </aside>
           </div>
@@ -186,7 +196,6 @@ function renderFeelingPanel(): string {
       <label class="field-label" for="feelingInput">Feeling</label>
       <textarea id="feelingInput" rows="5" placeholder="${placeholder}">${escapeHtml(state.feelingText)}</textarea>
       <div class="feeling-tags" id="feelingTags"></div>
-      <div class="recommendation-sets" id="recommendationSets"></div>
       <div class="conflict-box" id="conflictBox"></div>
       <button class="secondary-button" type="button" data-action="translate-api">${t.translateButton}</button>
       <p class="button-note">${t.translateGuide}</p>
@@ -195,16 +204,52 @@ function renderFeelingPanel(): string {
   `;
 }
 
+function renderRecommendationPanel(): string {
+  const t = getDictionary(state.language);
+
+  return `
+    <section class="control-panel recommendation-step">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Step 2</p>
+          <h3>${t.recommendedSetsTitle}</h3>
+        </div>
+      </div>
+      <p class="panel-note">${t.recommendationGuide}</p>
+      <div class="recommendation-sets" id="recommendationSets">
+        ${renderRecommendationSets()}
+      </div>
+      ${renderExportCtaBlock()}
+    </section>
+  `;
+}
+
+function renderCustomizePanel(): string {
+  const t = getDictionary(state.language);
+
+  return `
+    <details class="control-panel customize-details" id="customizeDetails">
+      <summary>
+        <span>${t.customizeDetailsTitle}</span>
+      </summary>
+      <div class="customize-content">
+        ${renderVisualPanel()}
+        ${renderColorPanel()}
+      </div>
+    </details>
+  `;
+}
+
 function renderVisualPanel(): string {
   const t = getDictionary(state.language);
   const recommendedVisualIds = getRecommendedVisualPresetIds(state.interpretedFeelingTags);
 
   return `
-    <section class="control-panel">
+    <section class="customize-block">
       <div class="panel-heading">
         <div>
-          <p class="eyebrow">Step 2</p>
-          <h3>${t.visualTitle}</h3>
+          <p class="eyebrow">Visual</p>
+          <h3>${t.changeVisualTitle}</h3>
         </div>
       </div>
       <p class="panel-note">${t.visualGuide}</p>
@@ -260,11 +305,11 @@ function renderColorPanel(): string {
   const recommendedColorIds = getRecommendedColorPaletteIds(state.interpretedFeelingTags);
 
   return `
-    <section class="control-panel">
+    <section class="customize-block">
       <div class="panel-heading">
         <div>
-          <p class="eyebrow">Step 3</p>
-          <h3>${t.colorTitle}</h3>
+          <p class="eyebrow">Color</p>
+          <h3>${t.changeColorTitle}</h3>
         </div>
       </div>
       <p class="panel-note">${t.colorGuide}</p>
@@ -301,28 +346,6 @@ function renderColorPanel(): string {
   `;
 }
 
-function renderExportPanel(price: string): string {
-  const t = getDictionary(state.language);
-
-  return `
-    <section class="control-panel">
-      <div class="panel-heading">
-        <div>
-          <p class="eyebrow">Step 5</p>
-          <h3>${t.exportTitle}</h3>
-        </div>
-        <span class="price-tag">${price}</span>
-      </div>
-      <button class="primary-button primary-button--full" type="button" data-action="paid-export">${t.paidExport}</button>
-      <div class="settings-row">
-        <input class="sr-only" id="settingsFile" type="file" accept=".json,application/json" />
-        <label class="secondary-button secondary-button--file" for="settingsFile">${t.settingsUpload}</label>
-        <button class="secondary-button" type="button" data-action="download-settings">${t.downloadSettings}</button>
-      </div>
-    </section>
-  `;
-}
-
 function renderLivePreview(): string {
   const t = getDictionary(state.language);
   const preset = getVisualPreset(state.selectedVisualPreset);
@@ -352,7 +375,7 @@ function renderLivePreview(): string {
     <div class="product-preview" style="${vars}">
       <div class="preview-summary">
         <strong>${preset.name} × ${palette.name}</strong>
-        <span>${getTranslationModeLabel(state.translationMode)}</span>
+        <span>${t.currentMode}: ${getTranslationModeLabel(state.translationMode)}</span>
       </div>
       <div class="preview-stage">
         <div class="preview-topbar" aria-hidden="true">
@@ -431,9 +454,10 @@ function handleClick(event: MouseEvent): void {
   if (action === "select-preset" && id) {
     rejectedVisuals.delete(id);
     state.selectedVisualPreset = id;
-    state.selectedRecommendationSet = undefined;
+    markCustomizedFromRecommendation();
     refreshFallbackStructure();
     trackEvent("visual_preset_select", analyticsStateParams());
+    trackEvent("customize_details_change", analyticsStateParams());
     render();
     return;
   }
@@ -444,18 +468,20 @@ function handleClick(event: MouseEvent): void {
       const nextPreset = visualPresets.find((preset) => !rejectedVisuals.has(preset.id)) ?? visualPresets[0];
       state.selectedVisualPreset = nextPreset.id;
     }
-    state.selectedRecommendationSet = undefined;
+    markCustomizedFromRecommendation();
     refreshFallbackStructure();
     trackEvent("visual_preset_select", analyticsStateParams());
+    trackEvent("customize_details_change", analyticsStateParams());
     render();
     return;
   }
 
   if (action === "select-palette" && id) {
     state.selectedColorPalette = id;
-    state.selectedRecommendationSet = undefined;
+    markCustomizedFromRecommendation();
     refreshFallbackStructure();
     trackEvent("color_palette_select", analyticsStateParams());
+    trackEvent("customize_details_change", analyticsStateParams());
     render();
     return;
   }
@@ -473,6 +499,7 @@ function handleClick(event: MouseEvent): void {
     state.selectedVisualPreset = visualId;
     state.selectedColorPalette = paletteId;
     state.selectedRecommendationSet = setId;
+    state.isCustomizedFromRecommendation = false;
     refreshFallbackStructure();
     trackEvent("recommended_set_select", {
       ...analyticsStateParams(),
@@ -480,7 +507,20 @@ function handleClick(event: MouseEvent): void {
       selectedVisualPreset: visualId,
       selectedColorPalette: paletteId,
     });
+    trackEvent("recommendation_use", {
+      ...analyticsStateParams(),
+      recommendedSetIndex: setIndex,
+      selectedVisualPreset: visualId,
+      selectedColorPalette: paletteId,
+    });
     render();
+    scrollToExportCta();
+    trackExportCtaViewIfNeeded();
+    return;
+  }
+
+  if (action === "open-customize-details") {
+    openCustomizeDetails();
     return;
   }
 
@@ -529,6 +569,15 @@ function handleChange(event: Event): void {
   target.value = "";
 }
 
+function handleToggle(event: Event): void {
+  const target = event.target as HTMLDetailsElement;
+  if (target.id !== "customizeDetails" || !target.open) {
+    return;
+  }
+
+  trackEvent("customize_details_open", analyticsStateParams());
+}
+
 function refreshFallbackStructure(): void {
   const interpretedFeelingTags = extractToneKeywords(state.feelingText);
   const conflict = detectTranslationConflict({
@@ -567,6 +616,7 @@ async function translateWithApi(): Promise<void> {
         selectedVisualPreset: state.selectedVisualPreset,
         selectedColorPalette: state.selectedColorPalette,
         selectedRecommendationSet: state.selectedRecommendationSet,
+        isCustomizedFromRecommendation: state.isCustomizedFromRecommendation,
         translationMode: state.translationMode,
       }),
     });
@@ -606,6 +656,10 @@ async function copyDesignMd(): Promise<void> {
   setStatus(ok ? t.copied : t.copyFailed);
   if (ok) {
     trackEvent("design_md_copy", analyticsStateParams());
+    trackEvent("export_cta_click", {
+      ...analyticsStateParams(),
+      exportAction: "copy_design",
+    });
   }
 }
 
@@ -622,6 +676,10 @@ async function copyStructure(): Promise<void> {
 async function requestCheckoutOrDownload(): Promise<void> {
   const t = getDictionary(state.language);
   trackEvent("zip_export_click", analyticsStateParams());
+  trackEvent("export_cta_click", {
+    ...analyticsStateParams(),
+    exportAction: "zip_export",
+  });
 
   try {
     const response = await fetch("/api/create-checkout-session", {
@@ -670,6 +728,7 @@ async function loadSettingsFile(file: File): Promise<void> {
     const nextMode = isTranslationMode(parsed.translationMode) ? parsed.translationMode : "harmonize";
     const nextRecommendationSet =
       typeof parsed.selectedRecommendationSet === "string" ? parsed.selectedRecommendationSet : undefined;
+    const nextIsCustomizedFromRecommendation = parsed.isCustomizedFromRecommendation === true;
     const nextConflict =
       normalizeConflict(parsed.conflict) ??
       detectTranslationConflict({
@@ -686,6 +745,7 @@ async function loadSettingsFile(file: File): Promise<void> {
       selectedVisualPreset: nextPreset,
       selectedColorPalette: nextPalette,
       selectedRecommendationSet: nextRecommendationSet,
+      isCustomizedFromRecommendation: nextIsCustomizedFromRecommendation,
       interpretedFeelingTags: nextTags,
       translationMode: nextMode,
       conflict: nextConflict,
@@ -754,6 +814,7 @@ function updateGeneratedViews(): void {
   }
 
   updateRecommendationBadges();
+  trackExportCtaViewIfNeeded();
 
   if (designNextAction) {
     designNextAction.textContent = nextActionMessage === t.designNextAction ? nextActionMessage : "";
@@ -802,6 +863,14 @@ function renderRecommendationSets(): string {
             const visualPreset = getVisualPreset(set.visualPresetId);
             const colorPalette = getColorPalette(set.colorPaletteId);
             const isSelected = state.selectedRecommendationSet === set.id;
+            const sampleStyle = [
+              `--pv-bg:${colorPalette.colors.background}`,
+              `--pv-surface:${colorPalette.colors.surface}`,
+              `--pv-text:${colorPalette.colors.text}`,
+              `--pv-muted:${colorPalette.colors.muted}`,
+              `--pv-accent:${colorPalette.colors.accent}`,
+              `--pv-radius:${visualPreset.preview.radius}`,
+            ].join(";");
 
             return `
               <article class="recommendation-card ${isSelected ? "is-selected" : ""}">
@@ -820,8 +889,14 @@ function renderRecommendationSets(): string {
                     .map(([, color]) => `<span style="background:${color}"></span>`)
                     .join("")}
                 </div>
+                <div class="recommendation-sample mini-ui" style="${sampleStyle}" aria-hidden="true">
+                  <span class="mini-bar"></span>
+                  <span class="mini-line mini-line--wide"></span>
+                  <span class="mini-block"></span>
+                  <span class="mini-button"></span>
+                </div>
                 <button
-                  class="secondary-button"
+                  class="primary-button"
                   type="button"
                   data-action="select-recommendation-set"
                   data-set-id="${set.id}"
@@ -834,6 +909,35 @@ function renderRecommendationSets(): string {
           })
           .join("")}
       </div>
+    </section>
+  `;
+}
+
+function renderExportCtaBlock(): string {
+  if (!isRecommendationExportReady()) {
+    return "";
+  }
+
+  const t = getDictionary(state.language);
+  const preset = getVisualPreset(state.selectedVisualPreset);
+  const palette = getColorPalette(state.selectedColorPalette);
+  const customizedNote = state.isCustomizedFromRecommendation
+    ? `<p class="customized-note">${t.customizedFromRecommendation}</p>`
+    : "";
+
+  return `
+    <section class="export-cta" id="exportCtaBlock" aria-label="${t.readyToExport}">
+      <div>
+        <p class="export-cta__ready">${t.readyToExport}</p>
+        <strong>${preset.name} × ${palette.name}</strong>
+        ${customizedNote}
+      </div>
+      <div class="export-cta__actions">
+        <button class="primary-button primary-button--full" type="button" data-action="copy-design">${t.copyDesignFree}</button>
+        <button class="secondary-button primary-button--full" type="button" data-action="paid-export">${t.zipExport}</button>
+        <button class="secondary-button primary-button--full" type="button" data-action="open-customize-details">${t.customizeDetailsTitle}</button>
+      </div>
+      <p class="button-note">${t.zipIncludes}</p>
     </section>
   `;
 }
@@ -916,9 +1020,67 @@ function getTranslationModeLabel(mode: TranslationMode): string {
   return t.harmonize;
 }
 
-function formatPreviewStateLine(label: string, value: string): string {
-  const separator = state.language === "ja" ? "：" : ": ";
-  return `${label}${separator}${value}`;
+function markCustomizedFromRecommendation(): void {
+  state.isCustomizedFromRecommendation = Boolean(state.selectedRecommendationSet);
+}
+
+function isRecommendationExportReady(): boolean {
+  return Boolean(state.selectedRecommendationSet);
+}
+
+function scrollToExportCta(): void {
+  window.setTimeout(() => {
+    rootElement
+      .querySelector<HTMLElement>("#exportCtaBlock")
+      ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, 0);
+}
+
+function openCustomizeDetails(): void {
+  const details = rootElement.querySelector<HTMLDetailsElement>("#customizeDetails");
+  if (!details) {
+    return;
+  }
+
+  details.open = true;
+  details.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function getSelectedRecommendationIndex(): number | undefined {
+  if (!state.selectedRecommendationSet) {
+    return undefined;
+  }
+
+  const recommendedSet = getRecommendedSets(state.interpretedFeelingTags).find(
+    (set) => set.id === state.selectedRecommendationSet,
+  );
+  if (recommendedSet) {
+    return recommendedSet.index;
+  }
+
+  const fallbackIndex = Number(state.selectedRecommendationSet.replace(/^set-/, ""));
+  return Number.isFinite(fallbackIndex) ? fallbackIndex : undefined;
+}
+
+function trackExportCtaViewIfNeeded(): void {
+  if (!isRecommendationExportReady() || !rootElement.querySelector("#exportCtaBlock")) {
+    return;
+  }
+
+  const key = [
+    state.selectedRecommendationSet,
+    state.selectedVisualPreset,
+    state.selectedColorPalette,
+    state.translationMode,
+    state.isCustomizedFromRecommendation ? "customized" : "recommended",
+  ].join("|");
+
+  if (key === lastExportCtaViewKey) {
+    return;
+  }
+
+  lastExportCtaViewKey = key;
+  trackEvent("export_cta_view", analyticsStateParams());
 }
 
 function getPreviewFontFamily(typography: ReturnType<typeof getVisualPreset>["previewStyle"]["typography"]): string {
@@ -944,6 +1106,8 @@ function analyticsStateParams() {
     translationMode: state.translationMode,
     conflictLevel: state.conflict?.level ?? "none",
     language: state.language,
+    recommendedSetIndex: getSelectedRecommendationIndex(),
+    isCustomizedFromRecommendation: state.isCustomizedFromRecommendation,
   };
 }
 

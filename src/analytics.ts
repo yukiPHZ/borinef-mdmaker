@@ -14,7 +14,12 @@ type AnalyticsEventName =
   | "zip_export_click"
   | "zip_export_download"
   | "language_switch"
-  | "recommended_set_select";
+  | "recommended_set_select"
+  | "recommendation_use"
+  | "export_cta_view"
+  | "export_cta_click"
+  | "customize_details_open"
+  | "customize_details_change";
 
 interface AnalyticsParams {
   selectedVisualPreset?: string;
@@ -23,6 +28,8 @@ interface AnalyticsParams {
   conflictLevel?: string;
   language?: LanguageCode;
   recommendedSetIndex?: number;
+  isCustomizedFromRecommendation?: boolean;
+  exportAction?: "copy_design" | "zip_export";
 }
 
 declare global {

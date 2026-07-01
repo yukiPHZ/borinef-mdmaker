@@ -174,6 +174,7 @@ export interface MakerState {
   selectedVisualPreset: string;
   selectedColorPalette: string;
   selectedRecommendationSet?: string;
+  isCustomizedFromRecommendation: boolean;
   interpretedFeelingTags: string[];
   translationMode: TranslationMode;
   conflict?: TranslationConflict;
