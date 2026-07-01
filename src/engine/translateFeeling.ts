@@ -5,6 +5,7 @@ import type {
   DesignStructure,
   TranslationConflict,
   TranslationMode,
+  VisualShadowStyle,
   VisualPreset,
 } from "../types";
 
@@ -43,7 +44,7 @@ const keywordRules: Array<{ value: string; patterns: string[] }> = [
 
 const intenseTags = ["energetic", "red", "passionate", "bold", "intense"];
 const quietVisualIds = ["quiet-practical", "warm-minimal"];
-const quietPaletteIds = ["warm-neutral", "soft-ink"];
+const quietPaletteIds = ["warm-neutral", "sand-minimal", "forest-calm", "clear-light"];
 const calmFitIds = ["quiet-practical", "warm-minimal", "dark-calm"];
 
 const spacingByScale = {
@@ -58,11 +59,16 @@ const radiusByScale = {
   sharp: { card: "4px", button: "4px", input: "4px" },
 };
 
-const shadowByIntensity = {
+const shadowByIntensity: Record<VisualShadowStyle, string> = {
   none: "none",
   soft: "0 8px 24px rgba(45, 41, 36, 0.08)",
+  "very-soft": "0 18px 42px rgba(70, 54, 40, 0.07)",
+  minimal: "0 2px 0 rgba(25, 23, 22, 0.16)",
+  clean: "0 10px 26px rgba(35, 39, 37, 0.1)",
   editorial: "0 14px 42px rgba(25, 23, 22, 0.14)",
   calm: "0 18px 50px rgba(0, 0, 0, 0.34)",
+  "dark-soft": "0 22px 54px rgba(0, 0, 0, 0.42)",
+  "organic-soft": "0 18px 40px rgba(63, 78, 54, 0.12)",
 };
 
 export function extractToneKeywords(feelingText: string): string[] {
@@ -134,6 +140,58 @@ export function detectTranslationConflict(options: {
     reasons,
     suggestedModes: hasConflict ? ["prefer_feeling", "harmonize"] : ["harmonize"],
   };
+}
+
+export function getRecommendedVisualPresetIds(interpretedFeelingTags: string[]): string[] {
+  const tags = new Set(interpretedFeelingTags);
+
+  if (intenseTags.some((tag) => tags.has(tag))) {
+    return ["clean-saas", "dark-calm"];
+  }
+
+  if (["quiet", "spacious", "practical", "warm"].some((tag) => tags.has(tag))) {
+    return ["quiet-practical", "warm-minimal"];
+  }
+
+  if (tags.has("dark")) {
+    return ["dark-calm", "studio-editorial"];
+  }
+
+  if (tags.has("natural") || tags.has("soft")) {
+    return ["natural-soft", "warm-minimal"];
+  }
+
+  if (tags.has("editorial") || tags.has("structured")) {
+    return ["studio-editorial", "clean-saas"];
+  }
+
+  return [];
+}
+
+export function getRecommendedColorPaletteIds(interpretedFeelingTags: string[]): string[] {
+  const tags = new Set(interpretedFeelingTags);
+
+  if (intenseTags.some((tag) => tags.has(tag))) {
+    return ["soft-ink", "quiet-charcoal"];
+  }
+
+  if (["quiet", "spacious", "practical", "warm"].some((tag) => tags.has(tag))) {
+    return ["warm-neutral", "quiet-charcoal"];
+  }
+
+  if (tags.has("dark")) {
+    return ["quiet-charcoal", "soft-ink"];
+  }
+
+  if (tags.has("natural") || tags.has("soft")) {
+    return ["forest-calm", "warm-neutral"];
+  }
+
+  if (tags.has("clean") || tags.has("structured")) {
+    return ["soft-ink", "clear-light"];
+  }
+
+  return [];
 }
 
 export function buildFallbackStructure(options: BuildStructureOptions): DesignStructure {

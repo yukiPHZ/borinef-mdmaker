@@ -7,6 +7,8 @@ import {
   buildFallbackStructure,
   detectTranslationConflict,
   extractToneKeywords,
+  getRecommendedColorPaletteIds,
+  getRecommendedVisualPresetIds,
   mergeApiStructure,
   normalizeConflict,
   structureToYaml,
@@ -192,6 +194,7 @@ function renderFeelingPanel(): string {
 
 function renderVisualPanel(): string {
   const t = getDictionary(state.language);
+  const recommendedVisualIds = getRecommendedVisualPresetIds(state.interpretedFeelingTags);
 
   return `
     <section class="control-panel">
@@ -201,11 +204,13 @@ function renderVisualPanel(): string {
           <h3>${t.visualTitle}</h3>
         </div>
       </div>
+      <p class="panel-note">${t.visualGuide}</p>
       <div class="preset-list">
         ${visualPresets
           .map((preset) => {
             const isSelected = preset.id === state.selectedVisualPreset;
             const isRejected = rejectedVisuals.has(preset.id);
+            const isRecommended = recommendedVisualIds.includes(preset.id);
             const style = [
               `--pv-bg:${preset.preview.background}`,
               `--pv-surface:${preset.preview.surface}`,
@@ -216,7 +221,11 @@ function renderVisualPanel(): string {
             ].join(";");
 
             return `
-              <article class="preset-card ${isSelected ? "is-selected" : ""} ${isRejected ? "is-rejected" : ""}" style="${style}">
+              <article
+                class="preset-card ${isSelected ? "is-selected" : ""} ${isRejected ? "is-rejected" : ""} ${isRecommended ? "is-recommended" : ""}"
+                data-id="${preset.id}"
+                style="${style}"
+              >
                 <div class="mini-ui" aria-hidden="true">
                   <span class="mini-bar"></span>
                   <span class="mini-line mini-line--wide"></span>
@@ -224,7 +233,10 @@ function renderVisualPanel(): string {
                   <span class="mini-button"></span>
                 </div>
                 <div class="preset-body">
-                  <strong>${preset.name}</strong>
+                  <div class="choice-title-row">
+                    <strong>${preset.name}</strong>
+                    <span class="recommend-badge ${isRecommended ? "" : "is-hidden"}">${t.recommended}</span>
+                  </div>
                   <p>${preset.description[state.language]}</p>
                 </div>
                 <div class="choice-row">
@@ -242,6 +254,7 @@ function renderVisualPanel(): string {
 
 function renderColorPanel(): string {
   const t = getDictionary(state.language);
+  const recommendedColorIds = getRecommendedColorPaletteIds(state.interpretedFeelingTags);
 
   return `
     <section class="control-panel">
@@ -251,19 +264,30 @@ function renderColorPanel(): string {
           <h3>${t.colorTitle}</h3>
         </div>
       </div>
+      <p class="panel-note">${t.colorGuide}</p>
+      <p class="panel-note panel-note--subtle">${t.paletteCurationNote}</p>
       <div class="palette-list">
         ${colorPalettes
           .map((palette) => {
             const isSelected = palette.id === state.selectedColorPalette;
+            const isRecommended = recommendedColorIds.includes(palette.id);
             return `
-              <button class="palette-card ${isSelected ? "is-selected" : ""}" type="button" data-action="select-palette" data-id="${palette.id}">
+              <button
+                class="palette-card ${isSelected ? "is-selected" : ""} ${isRecommended ? "is-recommended" : ""}"
+                type="button"
+                data-action="select-palette"
+                data-id="${palette.id}"
+              >
                 <span class="swatch-row" aria-hidden="true">
                   ${Object.entries(palette.colors)
                     .slice(0, 5)
                     .map(([, color]) => `<span style="background:${color}"></span>`)
                     .join("")}
                 </span>
-                <strong>${palette.name}</strong>
+                <span class="choice-title-row">
+                  <strong>${palette.name}</strong>
+                  <span class="recommend-badge ${isRecommended ? "" : "is-hidden"}">${t.recommended}</span>
+                </span>
                 <small>${palette.description[state.language]}</small>
               </button>
             `;
@@ -297,8 +321,10 @@ function renderExportPanel(price: string): string {
 }
 
 function renderLivePreview(): string {
+  const t = getDictionary(state.language);
   const preset = getVisualPreset(state.selectedVisualPreset);
   const palette = getColorPalette(state.selectedColorPalette);
+  const previewStyle = preset.previewStyle;
   const vars = [
     `--preview-bg:${palette.colors.background}`,
     `--preview-surface:${palette.colors.surface}`,
@@ -306,11 +332,48 @@ function renderLivePreview(): string {
     `--preview-muted:${palette.colors.muted}`,
     `--preview-accent:${palette.colors.accent}`,
     `--preview-border:${palette.colors.border}`,
-    `--preview-radius:${preset.preview.radius}`,
+    `--preview-gap:${previewStyle.gap}`,
+    `--preview-card-radius:${previewStyle.cardRadiusValue}`,
+    `--preview-button-radius:${previewStyle.buttonRadiusValue}`,
+    `--preview-card-shadow:${previewStyle.cardShadowValue}`,
+    `--preview-card-padding:${previewStyle.cardPadding}`,
+    `--preview-component-min-height:${previewStyle.componentMinHeight}`,
+    `--preview-hero-min-height:${previewStyle.heroMinHeight}`,
+    `--preview-hero-font-size:${previewStyle.heroFontSize}`,
+    `--preview-copy-gap:${previewStyle.copyGap}`,
+    `--preview-topbar-min-height:${previewStyle.topbarMinHeight}`,
+    `--preview-font-family:${getPreviewFontFamily(previewStyle.typography)}`,
   ].join(";");
+  const traits = [
+    [t.previewTraitLabels.spacing, previewStyle.spacing],
+    [t.previewTraitLabels.cardRadius, previewStyle.cardRadius],
+    [t.previewTraitLabels.buttonRadius, previewStyle.buttonRadius],
+    [t.previewTraitLabels.cardShadow, previewStyle.cardShadow],
+    [t.previewTraitLabels.typography, previewStyle.typography],
+    [t.previewTraitLabels.density, previewStyle.layoutDensity],
+    [t.previewTraitLabels.componentSize, previewStyle.componentSize],
+  ];
 
   return `
     <div class="product-preview" style="${vars}">
+      <div class="preview-state">
+        <strong>${t.currentPreview}</strong>
+        <span>${formatPreviewStateLine(t.currentVisual, preset.name)}</span>
+        <span>${formatPreviewStateLine(t.currentPalette, palette.name)}</span>
+        <span>${formatPreviewStateLine(t.currentMode, getTranslationModeLabel(state.translationMode))}</span>
+      </div>
+      <div class="preview-trait-grid" aria-label="selected preview traits">
+        ${traits
+          .map(
+            ([label, value]) => `
+              <span>
+                <small>${label}</small>
+                <strong>${value}</strong>
+              </span>
+            `,
+          )
+          .join("")}
+      </div>
       <div class="preview-topbar">
         <span>design.md</span>
         <span>tokens.json</span>
@@ -328,7 +391,7 @@ function renderLivePreview(): string {
         </div>
         <div class="preview-card">
           <strong>Component</strong>
-          <small>${state.structure.layout.density} density</small>
+          <small>${previewStyle.layoutDensity} density / ${previewStyle.componentSize}</small>
           <button type="button">Apply tokens</button>
         </div>
       </div>
@@ -657,6 +720,8 @@ function updateGeneratedViews(): void {
     conflictBox.innerHTML = renderConflictBox();
   }
 
+  updateRecommendationBadges();
+
   if (designNextAction) {
     designNextAction.textContent = nextActionMessage === t.designNextAction ? nextActionMessage : "";
   }
@@ -725,6 +790,63 @@ function renderConflictBox(): string {
   `;
 }
 
+function updateRecommendationBadges(): void {
+  const t = getDictionary(state.language);
+  const recommendedVisualIds = getRecommendedVisualPresetIds(state.interpretedFeelingTags);
+  const recommendedColorIds = getRecommendedColorPaletteIds(state.interpretedFeelingTags);
+
+  rootElement.querySelectorAll<HTMLElement>(".preset-card[data-id]").forEach((card) => {
+    const isRecommended = recommendedVisualIds.includes(card.dataset.id ?? "");
+    card.classList.toggle("is-recommended", isRecommended);
+    const badge = card.querySelector<HTMLElement>(".recommend-badge");
+    if (badge) {
+      badge.textContent = t.recommended;
+      badge.classList.toggle("is-hidden", !isRecommended);
+    }
+  });
+
+  rootElement.querySelectorAll<HTMLElement>(".palette-card[data-id]").forEach((card) => {
+    const isRecommended = recommendedColorIds.includes(card.dataset.id ?? "");
+    card.classList.toggle("is-recommended", isRecommended);
+    const badge = card.querySelector<HTMLElement>(".recommend-badge");
+    if (badge) {
+      badge.textContent = t.recommended;
+      badge.classList.toggle("is-hidden", !isRecommended);
+    }
+  });
+}
+
+function getTranslationModeLabel(mode: TranslationMode): string {
+  const t = getDictionary(state.language);
+
+  if (mode === "prefer_feeling") {
+    return t.preferFeeling;
+  }
+
+  if (mode === "prefer_visual") {
+    return t.preferVisual;
+  }
+
+  return t.harmonize;
+}
+
+function formatPreviewStateLine(label: string, value: string): string {
+  const separator = state.language === "ja" ? "：" : ": ";
+  return `${label}${separator}${value}`;
+}
+
+function getPreviewFontFamily(typography: ReturnType<typeof getVisualPreset>["previewStyle"]["typography"]): string {
+  if (typography === "editorial-serif") {
+    return "Georgia, 'Times New Roman', serif";
+  }
+
+  if (typography === "humanist-sans") {
+    return "'Avenir Next', 'Yu Gothic', system-ui, sans-serif";
+  }
+
+  return "Inter, system-ui, sans-serif";
+}
+
 function isTranslationMode(value: unknown): value is TranslationMode {
   return value === "prefer_feeling" || value === "prefer_visual" || value === "harmonize";
 }
@@ -771,6 +893,7 @@ async function copyText(text: string): Promise<boolean> {
     textarea.style.position = "fixed";
     textarea.style.left = "-9999px";
     document.body.appendChild(textarea);
+    textarea.focus();
     textarea.select();
     const ok = document.execCommand("copy");
     textarea.remove();

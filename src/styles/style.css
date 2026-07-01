@@ -405,6 +405,12 @@ h1 {
   font-size: 0.9rem;
 }
 
+.panel-note--subtle {
+  margin-top: -4px;
+  color: var(--soft-muted);
+  font-size: 0.82rem;
+}
+
 .field-label {
   display: block;
   margin-bottom: 6px;
@@ -536,6 +542,11 @@ textarea:focus {
   background: #fffaf4;
 }
 
+.preset-card.is-recommended,
+.palette-card.is-recommended {
+  border-color: rgba(89, 109, 85, 0.5);
+}
+
 .preset-card.is-rejected {
   opacity: 0.54;
 }
@@ -588,12 +599,43 @@ textarea:focus {
   min-width: 0;
 }
 
+.choice-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
 .preset-body strong,
 .palette-card strong {
   display: block;
   margin-bottom: 3px;
   font-size: 0.92rem;
   line-height: 1.3;
+}
+
+.choice-title-row strong {
+  min-width: 0;
+}
+
+.recommend-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 7px;
+  border: 1px solid rgba(89, 109, 85, 0.28);
+  border-radius: 999px;
+  background: rgba(244, 246, 241, 0.92);
+  color: var(--forest);
+  font-size: 0.68rem;
+  font-weight: 720;
+  line-height: 1.1;
+}
+
+.recommend-badge.is-hidden {
+  display: none;
 }
 
 .preset-body p {
@@ -673,13 +715,57 @@ textarea:focus {
 
 .product-preview {
   display: grid;
-  gap: 18px;
+  gap: var(--preview-gap);
   min-height: 640px;
   padding: 18px;
   border: 1px solid var(--preview-border);
   border-radius: 8px;
   background: var(--preview-bg);
   color: var(--preview-text);
+  font-family: var(--preview-font-family);
+}
+
+.preview-state {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding-bottom: 4px;
+  color: var(--preview-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.preview-state strong {
+  color: var(--preview-text);
+  font-size: 0.9rem;
+}
+
+.preview-trait-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.preview-trait-grid span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--preview-border), transparent 24%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--preview-surface), transparent 20%);
+}
+
+.preview-trait-grid small {
+  color: var(--preview-muted);
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.preview-trait-grid strong {
+  color: var(--preview-text);
+  font-size: 0.78rem;
+  line-height: 1.25;
 }
 
 .preview-topbar {
@@ -687,7 +773,7 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 44px;
+  min-height: var(--preview-topbar-min-height);
   padding: 0 0 12px;
   border-bottom: 1px solid var(--preview-border);
   color: var(--preview-muted);
@@ -697,7 +783,7 @@ textarea:focus {
 .preview-hero {
   display: grid;
   align-content: end;
-  min-height: 190px;
+  min-height: var(--preview-hero-min-height);
 }
 
 .preview-hero p {
@@ -711,7 +797,7 @@ textarea:focus {
 .preview-hero h4 {
   max-width: 12ch;
   margin: 0 0 10px;
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: var(--preview-hero-font-size);
   line-height: 1.02;
 }
 
@@ -722,14 +808,14 @@ textarea:focus {
 .preview-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(160px, 0.7fr);
-  gap: 14px;
+  gap: var(--preview-gap);
   align-items: stretch;
 }
 
 .preview-copy {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: var(--preview-copy-gap);
   padding-top: 8px;
 }
 
@@ -755,12 +841,12 @@ textarea:focus {
   display: grid;
   align-content: start;
   gap: 10px;
-  min-height: 170px;
-  padding: 16px;
+  min-height: var(--preview-component-min-height);
+  padding: var(--preview-card-padding);
   border: 1px solid var(--preview-border);
-  border-radius: var(--preview-radius);
+  border-radius: var(--preview-card-radius);
   background: var(--preview-surface);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--preview-card-shadow);
 }
 
 .preview-card strong {
@@ -775,7 +861,7 @@ textarea:focus {
   min-height: 36px;
   margin-top: 10px;
   border: 1px solid var(--preview-accent);
-  border-radius: var(--preview-radius);
+  border-radius: var(--preview-button-radius);
   background: var(--preview-accent);
   color: var(--preview-surface);
 }

@@ -12,6 +12,17 @@ export type TypographyStyle =
   | "humanist-sans"
   | "system-sans";
 
+export type VisualShadowStyle =
+  | "none"
+  | "soft"
+  | "very-soft"
+  | "minimal"
+  | "clean"
+  | "editorial"
+  | "calm"
+  | "dark-soft"
+  | "organic-soft";
+
 export interface TranslationConflict {
   hasConflict: boolean;
   level: ConflictLevel;
@@ -43,12 +54,31 @@ export interface VisualPreset {
     radius: string;
     density: "low" | "medium" | "compact";
   };
+  previewStyle: {
+    spacing: string;
+    cardRadius: string;
+    buttonRadius: string;
+    cardShadow: string;
+    typography: TypographyStyle;
+    layoutDensity: "low" | "medium" | "compact";
+    componentSize: string;
+    gap: string;
+    cardRadiusValue: string;
+    buttonRadiusValue: string;
+    cardShadowValue: string;
+    cardPadding: string;
+    componentMinHeight: string;
+    heroMinHeight: string;
+    heroFontSize: string;
+    copyGap: string;
+    topbarMinHeight: string;
+  };
   structureHints: {
     density: "low" | "medium" | "compact";
     rhythm: string;
     spacingScale: "large" | "balanced" | "compact";
     radiusScale: "soft" | "balanced" | "sharp";
-    shadow: "none" | "soft" | "editorial" | "calm";
+    shadow: VisualShadowStyle;
     motion: "subtle-fade" | "steady" | "editorial-shift";
     headingStyle: TypographyStyle;
     bodyStyle: TypographyStyle;
