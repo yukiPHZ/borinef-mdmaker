@@ -13,7 +13,8 @@ type AnalyticsEventName =
   | "settings_import"
   | "zip_export_click"
   | "zip_export_download"
-  | "language_switch";
+  | "language_switch"
+  | "recommended_set_select";
 
 interface AnalyticsParams {
   selectedVisualPreset?: string;
@@ -21,6 +22,7 @@ interface AnalyticsParams {
   translationMode?: TranslationMode;
   conflictLevel?: string;
   language?: LanguageCode;
+  recommendedSetIndex?: number;
 }
 
 declare global {

@@ -1,5 +1,33 @@
 import type { VisualPreset } from "../types";
 
+const legacyVisualPresetIds: Record<string, string> = {
+  "studio-editorial": "editorial-calm",
+  "clean-saas": "structured-clarity",
+  "dark-calm": "confident-restraint",
+};
+
+function makePreviewStyle(options: {
+  spacing: string;
+  cardRadius: string;
+  buttonRadius: string;
+  cardShadow: string;
+  typography: VisualPreset["previewStyle"]["typography"];
+  layoutDensity: VisualPreset["previewStyle"]["layoutDensity"];
+  componentSize: string;
+  gap: string;
+  cardRadiusValue: string;
+  buttonRadiusValue: string;
+  cardShadowValue: string;
+  cardPadding: string;
+  componentMinHeight: string;
+  heroMinHeight: string;
+  heroFontSize: string;
+  copyGap: string;
+  topbarMinHeight: string;
+}): VisualPreset["previewStyle"] {
+  return options;
+}
+
 export const visualPresets: VisualPreset[] = [
   {
     id: "quiet-practical",
@@ -8,17 +36,17 @@ export const visualPresets: VisualPreset[] = [
       ja: "静かで実務的。余白を保ちつつ、迷わず使える画面。",
       en: "Quiet and practical. Spacious, readable, and easy to operate.",
     },
-    tags: ["quiet", "practical", "spacious", "low-noise", "human"],
+    tags: ["quiet", "practical", "spacious", "low-noise"],
     preview: {
       background: "#F7F4EF",
       surface: "#FFFFFF",
       text: "#27231F",
       muted: "#81776D",
-      accent: "#C46A32",
+      accent: "#B7653F",
       radius: "10px",
       density: "low",
     },
-    previewStyle: {
+    previewStyle: makePreviewStyle({
       spacing: "generous",
       cardRadius: "medium",
       buttonRadius: "medium",
@@ -36,7 +64,7 @@ export const visualPresets: VisualPreset[] = [
       heroFontSize: "clamp(2rem, 4vw, 3.4rem)",
       copyGap: "13px",
       topbarMinHeight: "44px",
-    },
+    }),
     structureHints: {
       density: "low",
       rhythm: "calm work surface",
@@ -56,17 +84,17 @@ export const visualPresets: VisualPreset[] = [
       ja: "最小限だけど冷たくない。言葉と余白を大事にする。",
       en: "Minimal without feeling cold. Text, space, and warmth stay in balance.",
     },
-    tags: ["warm", "minimal", "quiet", "soft", "focused"],
+    tags: ["warm", "minimal", "restrained", "spacious"],
     preview: {
       background: "#FBF7F0",
       surface: "#FFFDF8",
       text: "#302B25",
       muted: "#877B6E",
-      accent: "#B8623D",
-      radius: "16px",
+      accent: "#C17A4A",
+      radius: "18px",
       density: "low",
     },
-    previewStyle: {
+    previewStyle: makePreviewStyle({
       spacing: "large",
       cardRadius: "large",
       buttonRadius: "large",
@@ -84,7 +112,7 @@ export const visualPresets: VisualPreset[] = [
       heroFontSize: "clamp(2.1rem, 4vw, 3.5rem)",
       copyGap: "15px",
       topbarMinHeight: "48px",
-    },
+    }),
     structureHints: {
       density: "low",
       rhythm: "slow reading rhythm",
@@ -98,13 +126,61 @@ export const visualPresets: VisualPreset[] = [
     },
   },
   {
-    id: "studio-editorial",
-    name: "Studio Editorial",
+    id: "soft-focus",
+    name: "Soft Focus",
     description: {
-      ja: "編集室のように整った強弱。見出しと写真領域が映える。",
-      en: "Editorial contrast with studio-like order and clear content hierarchy.",
+      ja: "主張しすぎない。視線が迷わず、大事な要素だけが立つ。",
+      en: "Quiet contrast with only the important elements stepping forward.",
     },
-    tags: ["editorial", "structured", "confident", "spacious", "sharp"],
+    tags: ["soft", "focused", "gentle-contrast"],
+    preview: {
+      background: "#F6F2ED",
+      surface: "#FFFFFF",
+      text: "#2B2A27",
+      muted: "#7F7A72",
+      accent: "#8A7A62",
+      radius: "14px",
+      density: "low",
+    },
+    previewStyle: makePreviewStyle({
+      spacing: "large",
+      cardRadius: "large",
+      buttonRadius: "medium",
+      cardShadow: "very soft",
+      typography: "neutral-sans",
+      layoutDensity: "low",
+      componentSize: "comfortable",
+      gap: "22px",
+      cardRadiusValue: "16px",
+      buttonRadiusValue: "10px",
+      cardShadowValue: "0 14px 34px rgba(54, 47, 39, 0.06)",
+      cardPadding: "20px",
+      componentMinHeight: "180px",
+      heroMinHeight: "205px",
+      heroFontSize: "clamp(2rem, 4vw, 3.35rem)",
+      copyGap: "14px",
+      topbarMinHeight: "46px",
+    }),
+    structureHints: {
+      density: "low",
+      rhythm: "soft focus hierarchy",
+      spacingScale: "large",
+      radiusScale: "soft",
+      shadow: "very-soft",
+      motion: "subtle-fade",
+      headingStyle: "neutral-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "Inter, system-ui, sans-serif",
+    },
+  },
+  {
+    id: "editorial-calm",
+    name: "Editorial Calm",
+    description: {
+      ja: "雑誌の誌面のような、静かな情報の重み。読ませる設計。",
+      en: "Calm editorial weight for layouts meant to be read.",
+    },
+    tags: ["editorial", "calm", "readable", "structured"],
     preview: {
       background: "#F4F1EC",
       surface: "#FFFFFF",
@@ -114,7 +190,7 @@ export const visualPresets: VisualPreset[] = [
       radius: "4px",
       density: "medium",
     },
-    previewStyle: {
+    previewStyle: makePreviewStyle({
       spacing: "dramatic",
       cardRadius: "small",
       buttonRadius: "small",
@@ -132,10 +208,10 @@ export const visualPresets: VisualPreset[] = [
       heroFontSize: "clamp(2.4rem, 4.8vw, 4rem)",
       copyGap: "18px",
       topbarMinHeight: "40px",
-    },
+    }),
     structureHints: {
       density: "medium",
-      rhythm: "editorial contrast",
+      rhythm: "editorial reading contrast",
       spacingScale: "balanced",
       radiusScale: "sharp",
       shadow: "minimal",
@@ -146,23 +222,23 @@ export const visualPresets: VisualPreset[] = [
     },
   },
   {
-    id: "clean-saas",
-    name: "Clean SaaS",
+    id: "structured-clarity",
+    name: "Structured Clarity",
     description: {
-      ja: "道具として明快。青くなりすぎない、業務向けの整然さ。",
-      en: "Clear product utility with restrained, non-blue SaaS order.",
+      ja: "整理された明快さ。グリッドと余白で機能を語る。",
+      en: "Structured clarity where grids and space explain the product.",
     },
-    tags: ["clean", "systematic", "practical", "readable", "steady"],
+    tags: ["structured", "clear", "functional", "precise"],
     preview: {
       background: "#F6F7F5",
       surface: "#FFFFFF",
       text: "#232725",
       muted: "#6B716E",
-      accent: "#A75D3A",
+      accent: "#4A5A6B",
       radius: "10px",
       density: "medium",
     },
-    previewStyle: {
+    previewStyle: makePreviewStyle({
       spacing: "medium",
       cardRadius: "medium",
       buttonRadius: "medium",
@@ -180,7 +256,7 @@ export const visualPresets: VisualPreset[] = [
       heroFontSize: "clamp(1.9rem, 3.7vw, 3rem)",
       copyGap: "10px",
       topbarMinHeight: "40px",
-    },
+    }),
     structureHints: {
       density: "medium",
       rhythm: "task-oriented grid",
@@ -194,71 +270,23 @@ export const visualPresets: VisualPreset[] = [
     },
   },
   {
-    id: "dark-calm",
-    name: "Dark Calm",
-    description: {
-      ja: "暗めでも重くしすぎない。集中と静けさを優先する。",
-      en: "Dark, calm, and focused without turning heavy or dramatic.",
-    },
-    tags: ["dark", "calm", "focused", "quiet", "low-noise"],
-    preview: {
-      background: "#0B0D10",
-      surface: "#151A20",
-      text: "#F5F7FA",
-      muted: "#9CA3AF",
-      accent: "#C46A32",
-      radius: "10px",
-      density: "low",
-    },
-    previewStyle: {
-      spacing: "large",
-      cardRadius: "medium",
-      buttonRadius: "medium",
-      cardShadow: "dark-soft",
-      typography: "system-sans",
-      layoutDensity: "low",
-      componentSize: "comfortable",
-      gap: "24px",
-      cardRadiusValue: "10px",
-      buttonRadiusValue: "8px",
-      cardShadowValue: "0 22px 54px rgba(0, 0, 0, 0.42)",
-      cardPadding: "20px",
-      componentMinHeight: "184px",
-      heroMinHeight: "208px",
-      heroFontSize: "clamp(2rem, 4vw, 3.25rem)",
-      copyGap: "14px",
-      topbarMinHeight: "48px",
-    },
-    structureHints: {
-      density: "low",
-      rhythm: "focused dark workspace",
-      spacingScale: "large",
-      radiusScale: "balanced",
-      shadow: "dark-soft",
-      motion: "subtle-fade",
-      headingStyle: "system-sans",
-      bodyStyle: "system-sans",
-      recommendedStack: "system-ui, sans-serif",
-    },
-  },
-  {
     id: "natural-soft",
     name: "Natural Soft",
     description: {
-      ja: "自然でやわらかい。説明よりも空気感が先に伝わる。",
-      en: "Natural and soft, with atmosphere arriving before explanation.",
+      ja: "自然光のような柔らかさ。角を丸め、圧を抜く。",
+      en: "Natural light softness with rounded pressure-free surfaces.",
     },
-    tags: ["natural", "soft", "warm", "organic", "human"],
+    tags: ["natural", "soft", "rounded", "gentle"],
     preview: {
       background: "#F3F5EF",
       surface: "#FCFCF7",
       text: "#273027",
       muted: "#73806F",
-      accent: "#7E6946",
+      accent: "#6E8362",
       radius: "18px",
       density: "low",
     },
-    previewStyle: {
+    previewStyle: makePreviewStyle({
       spacing: "large",
       cardRadius: "large",
       buttonRadius: "large",
@@ -276,7 +304,7 @@ export const visualPresets: VisualPreset[] = [
       heroFontSize: "clamp(2.05rem, 4vw, 3.45rem)",
       copyGap: "15px",
       topbarMinHeight: "48px",
-    },
+    }),
     structureHints: {
       density: "low",
       rhythm: "natural open flow",
@@ -289,8 +317,205 @@ export const visualPresets: VisualPreset[] = [
       recommendedStack: "Avenir Next, Hiragino Sans, system-ui, sans-serif",
     },
   },
+  {
+    id: "confident-restraint",
+    name: "Confident Restraint",
+    description: {
+      ja: "抑えた自信。派手さではなく、判断の速さで信頼を作る。",
+      en: "Restrained confidence built through decisive hierarchy.",
+    },
+    tags: ["confident", "restrained", "decisive", "quiet-strength"],
+    preview: {
+      background: "#F1F3F4",
+      surface: "#FFFFFF",
+      text: "#181D20",
+      muted: "#697278",
+      accent: "#35465A",
+      radius: "8px",
+      density: "medium",
+    },
+    previewStyle: makePreviewStyle({
+      spacing: "medium",
+      cardRadius: "medium",
+      buttonRadius: "medium",
+      cardShadow: "clean",
+      typography: "system-sans",
+      layoutDensity: "medium",
+      componentSize: "decisive",
+      gap: "16px",
+      cardRadiusValue: "8px",
+      buttonRadiusValue: "8px",
+      cardShadowValue: "0 14px 34px rgba(24, 29, 32, 0.13)",
+      cardPadding: "16px",
+      componentMinHeight: "166px",
+      heroMinHeight: "178px",
+      heroFontSize: "clamp(2rem, 4vw, 3.2rem)",
+      copyGap: "11px",
+      topbarMinHeight: "40px",
+    }),
+    structureHints: {
+      density: "medium",
+      rhythm: "decisive restrained hierarchy",
+      spacingScale: "balanced",
+      radiusScale: "balanced",
+      shadow: "clean",
+      motion: "steady",
+      headingStyle: "system-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "system-ui, sans-serif",
+    },
+  },
+  {
+    id: "grounded-craft",
+    name: "Grounded Craft",
+    description: {
+      ja: "手仕事のような質感。装飾は少なく、素材感で語る。",
+      en: "Grounded craft with tactile warmth and restrained decoration.",
+    },
+    tags: ["grounded", "tactile", "understated", "warm"],
+    preview: {
+      background: "#F6F0E6",
+      surface: "#FFFDF9",
+      text: "#2C241C",
+      muted: "#7E7161",
+      accent: "#A84E2B",
+      radius: "12px",
+      density: "medium",
+    },
+    previewStyle: makePreviewStyle({
+      spacing: "large",
+      cardRadius: "medium",
+      buttonRadius: "medium",
+      cardShadow: "organic-soft",
+      typography: "humanist-sans",
+      layoutDensity: "medium",
+      componentSize: "tactile",
+      gap: "20px",
+      cardRadiusValue: "12px",
+      buttonRadiusValue: "10px",
+      cardShadowValue: "0 16px 36px rgba(69, 49, 31, 0.12)",
+      cardPadding: "18px",
+      componentMinHeight: "172px",
+      heroMinHeight: "190px",
+      heroFontSize: "clamp(2.05rem, 4.2vw, 3.4rem)",
+      copyGap: "13px",
+      topbarMinHeight: "44px",
+    }),
+    structureHints: {
+      density: "medium",
+      rhythm: "grounded craft surface",
+      spacingScale: "balanced",
+      radiusScale: "balanced",
+      shadow: "organic-soft",
+      motion: "subtle-fade",
+      headingStyle: "humanist-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "Avenir Next, Hiragino Sans, system-ui, sans-serif",
+    },
+  },
+  {
+    id: "airy-studio",
+    name: "Airy Studio",
+    description: {
+      ja: "空気を含んだ余白。制作環境やポートフォリオ向け。",
+      en: "Air-filled whitespace for studios, portfolios, and making tools.",
+    },
+    tags: ["airy", "spacious", "light", "open"],
+    preview: {
+      background: "#FAFAF9",
+      surface: "#FFFFFF",
+      text: "#24211E",
+      muted: "#7A756D",
+      accent: "#8A7A62",
+      radius: "6px",
+      density: "low",
+    },
+    previewStyle: makePreviewStyle({
+      spacing: "airy",
+      cardRadius: "small",
+      buttonRadius: "small",
+      cardShadow: "minimal",
+      typography: "editorial-serif",
+      layoutDensity: "low",
+      componentSize: "open",
+      gap: "30px",
+      cardRadiusValue: "6px",
+      buttonRadiusValue: "6px",
+      cardShadowValue: "0 1px 0 rgba(36, 33, 30, 0.1)",
+      cardPadding: "18px",
+      componentMinHeight: "172px",
+      heroMinHeight: "240px",
+      heroFontSize: "clamp(2.5rem, 5vw, 4.15rem)",
+      copyGap: "18px",
+      topbarMinHeight: "42px",
+    }),
+    structureHints: {
+      density: "low",
+      rhythm: "airy studio presentation",
+      spacingScale: "large",
+      radiusScale: "sharp",
+      shadow: "minimal",
+      motion: "editorial-shift",
+      headingStyle: "editorial-serif",
+      bodyStyle: "neutral-sans",
+      recommendedStack: "Georgia, Times New Roman, serif",
+    },
+  },
+  {
+    id: "dense-utility",
+    name: "Dense Utility",
+    description: {
+      ja: "情報密度を上げても崩れない、業務ツール向けの構え。",
+      en: "Compact utility for information-heavy work tools.",
+    },
+    tags: ["dense", "utilitarian", "efficient", "compact"],
+    preview: {
+      background: "#F4F6F7",
+      surface: "#FFFFFF",
+      text: "#232A2E",
+      muted: "#6E767C",
+      accent: "#556670",
+      radius: "6px",
+      density: "compact",
+    },
+    previewStyle: makePreviewStyle({
+      spacing: "compact",
+      cardRadius: "small",
+      buttonRadius: "small",
+      cardShadow: "clean",
+      typography: "system-sans",
+      layoutDensity: "compact",
+      componentSize: "compact",
+      gap: "10px",
+      cardRadiusValue: "6px",
+      buttonRadiusValue: "6px",
+      cardShadowValue: "0 8px 20px rgba(35, 42, 46, 0.1)",
+      cardPadding: "12px",
+      componentMinHeight: "136px",
+      heroMinHeight: "142px",
+      heroFontSize: "clamp(1.6rem, 3.1vw, 2.4rem)",
+      copyGap: "8px",
+      topbarMinHeight: "34px",
+    }),
+    structureHints: {
+      density: "compact",
+      rhythm: "dense utility grid",
+      spacingScale: "compact",
+      radiusScale: "sharp",
+      shadow: "clean",
+      motion: "steady",
+      headingStyle: "system-sans",
+      bodyStyle: "system-sans",
+      recommendedStack: "system-ui, sans-serif",
+    },
+  },
 ];
 
+export function normalizeVisualPresetId(id: string): string {
+  return legacyVisualPresetIds[id] ?? id;
+}
+
 export function getVisualPreset(id: string): VisualPreset {
-  return visualPresets.find((preset) => preset.id === id) ?? visualPresets[0];
+  const normalizedId = normalizeVisualPresetId(id);
+  return visualPresets.find((preset) => preset.id === normalizedId) ?? visualPresets[0];
 }

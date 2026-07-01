@@ -3,6 +3,7 @@ import { getVisualPreset } from "../data/visualPresets";
 import type {
   ColorPalette,
   DesignStructure,
+  RecommendationSet,
   TranslationConflict,
   TranslationMode,
   VisualShadowStyle,
@@ -40,12 +41,15 @@ const keywordRules: Array<{ value: string; patterns: string[] }> = [
   { value: "passionate", patterns: ["passionate", "passion", "情熱", "熱い"] },
   { value: "bold", patterns: ["bold", "strong", "大胆", "力強", "太い"] },
   { value: "intense", patterns: ["intense", "aggressive", "激", "強烈"] },
+  { value: "blue", patterns: ["blue", "青", "紺", "ブルー"] },
+  { value: "trust", patterns: ["trust", "reliable", "business", "corporate", "信頼", "事務", "法務", "金融"] },
 ];
 
 const intenseTags = ["energetic", "red", "passionate", "bold", "intense"];
-const quietVisualIds = ["quiet-practical", "warm-minimal"];
-const quietPaletteIds = ["warm-neutral", "sand-minimal", "forest-calm", "clear-light"];
-const calmFitIds = ["quiet-practical", "warm-minimal", "dark-calm"];
+const trustTags = ["blue", "trust"];
+const quietVisualIds = ["quiet-practical", "warm-minimal", "soft-focus", "airy-studio"];
+const quietPaletteIds = ["warm-neutral", "warm-paper", "sand-minimal", "clear-light", "quiet-charcoal"];
+const calmFitIds = ["quiet-practical", "warm-minimal", "soft-focus", "natural-soft", "airy-studio"];
 
 const spacingByScale = {
   large: { section: "96px", container: "24px", card: "24px" },
@@ -143,55 +147,129 @@ export function detectTranslationConflict(options: {
 }
 
 export function getRecommendedVisualPresetIds(interpretedFeelingTags: string[]): string[] {
-  const tags = new Set(interpretedFeelingTags);
-
-  if (intenseTags.some((tag) => tags.has(tag))) {
-    return ["clean-saas", "dark-calm"];
+  const setVisualIds = getRecommendedSets(interpretedFeelingTags).map((set) => set.visualPresetId);
+  if (setVisualIds.length) {
+    return uniqueList(setVisualIds);
   }
 
+  const tags = new Set(interpretedFeelingTags);
+
   if (["quiet", "spacious", "practical", "warm"].some((tag) => tags.has(tag))) {
-    return ["quiet-practical", "warm-minimal"];
+    return ["quiet-practical", "warm-minimal", "soft-focus"];
   }
 
   if (tags.has("dark")) {
-    return ["dark-calm", "studio-editorial"];
+    return ["confident-restraint", "quiet-practical", "dense-utility"];
   }
 
   if (tags.has("natural") || tags.has("soft")) {
-    return ["natural-soft", "warm-minimal"];
+    return ["natural-soft", "grounded-craft", "airy-studio"];
   }
 
   if (tags.has("editorial") || tags.has("structured")) {
-    return ["studio-editorial", "clean-saas"];
+    return ["editorial-calm", "structured-clarity"];
   }
 
   return [];
 }
 
 export function getRecommendedColorPaletteIds(interpretedFeelingTags: string[]): string[] {
-  const tags = new Set(interpretedFeelingTags);
-
-  if (intenseTags.some((tag) => tags.has(tag))) {
-    return ["soft-ink", "quiet-charcoal"];
+  const setPaletteIds = getRecommendedSets(interpretedFeelingTags).map((set) => set.colorPaletteId);
+  if (setPaletteIds.length) {
+    return uniqueList(setPaletteIds);
   }
 
+  const tags = new Set(interpretedFeelingTags);
+
   if (["quiet", "spacious", "practical", "warm"].some((tag) => tags.has(tag))) {
-    return ["warm-neutral", "quiet-charcoal"];
+    return ["warm-neutral", "warm-paper", "sand-minimal"];
   }
 
   if (tags.has("dark")) {
-    return ["quiet-charcoal", "soft-ink"];
+    return ["deep-ink", "quiet-charcoal", "navy-confident"];
   }
 
   if (tags.has("natural") || tags.has("soft")) {
-    return ["forest-calm", "warm-neutral"];
+    return ["sage-quiet", "wheat-soft", "forest-calm"];
   }
 
   if (tags.has("clean") || tags.has("structured")) {
-    return ["soft-ink", "clear-light"];
+    return ["soft-ink", "cool-clarity", "clear-light"];
   }
 
   return [];
+}
+
+export function getRecommendedSets(interpretedFeelingTags: string[]): RecommendationSet[] {
+  const tags = new Set(interpretedFeelingTags);
+  const hasIntensity = intenseTags.some((tag) => tags.has(tag));
+  const hasTrust = trustTags.some((tag) => tags.has(tag));
+  const hasQuietWarm = ["quiet", "spacious", "practical", "warm", "minimal"].some((tag) => tags.has(tag));
+  const hasDark = tags.has("dark");
+  const hasNaturalSoft = ["natural", "soft"].some((tag) => tags.has(tag));
+  const hasStructured = ["structured", "clean", "editorial"].some((tag) => tags.has(tag));
+
+  if (hasIntensity) {
+    return makeRecommendationSets([
+      ["confident-restraint", "bold-ember", "赤い熱量を抑えた自信として扱えます。", "This keeps red energy decisive without becoming loud."],
+      ["structured-clarity", "crimson-focus", "情熱を機能的な見やすさへ寄せます。", "This turns passion into functional clarity."],
+      ["dense-utility", "signal-red", "強い行動感を業務画面として保てます。", "This holds strong action energy inside a compact tool surface."],
+    ]);
+  }
+
+  if (hasDark) {
+    return makeRecommendationSets([
+      ["confident-restraint", "deep-ink", "暗さを信頼感と判断の速さに変換します。", "This translates darkness into trust and decisive hierarchy."],
+      ["quiet-practical", "quiet-charcoal", "暗すぎず、静かな実務感を保てます。", "This keeps the result quiet and practical without going too dark."],
+      ["dense-utility", "navy-confident", "濃い色の重心を、情報密度の高い画面に使えます。", "This applies a dark center of gravity to dense utility screens."],
+    ]);
+  }
+
+  if (hasTrust) {
+    return makeRecommendationSets([
+      ["structured-clarity", "deep-blue-focus", "信頼感を、整理された機能性として見せられます。", "This makes trust feel structured and functional."],
+      ["quiet-practical", "navy-confident", "落ち着いた信頼感と実務性のバランスが近いです。", "This balances calm reliability with practical operation."],
+      ["structured-clarity", "electric-trust", "青の強さを、明快なサービス感として使えます。", "This uses stronger blue as clear product confidence."],
+    ]);
+  }
+
+  if (hasNaturalSoft) {
+    return makeRecommendationSets([
+      ["natural-soft", "sage-quiet", "自然な柔らかさと、圧の少ない色が合います。", "This pairs natural softness with low-pressure color."],
+      ["grounded-craft", "wheat-soft", "手触りのある温かさを、落ち着いて出せます。", "This gives warmth a grounded, tactile feeling."],
+      ["airy-studio", "forest-calm", "空気感と自然な落ち着きの相性がよいです。", "This combines airy space with natural calm."],
+    ]);
+  }
+
+  if (hasQuietWarm) {
+    return makeRecommendationSets([
+      ["quiet-practical", "warm-neutral", "静かさ・実務性・温かさのバランスが近いです。", "This balances quietness, practicality, and warmth."],
+      ["warm-minimal", "warm-paper", "言葉と余白を大事にしながら、冷たさを避けます。", "This keeps text and space warm without adding noise."],
+      ["soft-focus", "sand-minimal", "主張を抑えつつ、必要な要素だけを立てます。", "This reduces noise while keeping important elements visible."],
+    ]);
+  }
+
+  if (hasStructured) {
+    return makeRecommendationSets([
+      ["structured-clarity", "soft-ink", "整理された構造を、読みやすいコントラストで支えます。", "This supports structure with readable contrast."],
+      ["editorial-calm", "stone-quiet", "情報の重みを、静かな誌面感で見せます。", "This gives information quiet editorial weight."],
+      ["dense-utility", "steel-soft", "機能の多い画面でも崩れにくい構えです。", "This keeps dense tools composed and readable."],
+    ]);
+  }
+
+  return [];
+}
+
+function makeRecommendationSets(
+  rows: Array<[string, string, string, string]>,
+): RecommendationSet[] {
+  return rows.map(([visualPresetId, colorPaletteId, ja, en], index) => ({
+    id: `set-${index + 1}`,
+    index: index + 1,
+    visualPresetId,
+    colorPaletteId,
+    reason: { ja, en },
+  }));
 }
 
 export function buildFallbackStructure(options: BuildStructureOptions): DesignStructure {
@@ -230,6 +308,7 @@ export function buildStructureFromParts(options: {
   const spacing = spacingByScale[preset.structureHints.spacingScale];
   const radius = radiusByScale[preset.structureHints.radiusScale];
   const motionSpeed = preset.structureHints.motion === "editorial-shift" ? "medium" : "slow";
+  const isEditorial = preset.structureHints.headingStyle === "editorial-serif";
 
   return {
     visual_tone: visualTone.length ? visualTone : ["quiet", "practical", "human"],
@@ -258,11 +337,11 @@ export function buildStructureFromParts(options: {
       headingStyle: preset.structureHints.headingStyle,
       bodyStyle: preset.structureHints.bodyStyle,
       recommendedStack: preset.structureHints.recommendedStack,
-      weightHeading: preset.id === "studio-editorial" ? 760 : 700,
+      weightHeading: isEditorial ? 760 : 700,
       weightBody: 400,
       fontSize: {
-        hero: preset.id === "studio-editorial" ? "clamp(46px, 7vw, 88px)" : "clamp(42px, 7vw, 84px)",
-        h1: preset.id === "studio-editorial" ? "56px" : "48px",
+        hero: isEditorial ? "clamp(46px, 7vw, 88px)" : "clamp(42px, 7vw, 84px)",
+        h1: isEditorial ? "56px" : "48px",
         h2: "32px",
         h3: "22px",
         body: "16px",

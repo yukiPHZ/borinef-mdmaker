@@ -93,6 +93,14 @@ export interface ColorPalette {
   colors: ColorTokens;
 }
 
+export interface RecommendationSet {
+  id: string;
+  index: number;
+  visualPresetId: string;
+  colorPaletteId: string;
+  reason: Record<LanguageCode, string>;
+}
+
 export interface DesignStructure {
   visual_tone: string[];
   layout: {
@@ -165,6 +173,7 @@ export interface MakerState {
   feelingText: string;
   selectedVisualPreset: string;
   selectedColorPalette: string;
+  selectedRecommendationSet?: string;
   interpretedFeelingTags: string[];
   translationMode: TranslationMode;
   conflict?: TranslationConflict;

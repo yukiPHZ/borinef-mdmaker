@@ -17,6 +17,7 @@ export function buildDesignSummary(options: PromptOptions, language: LanguageCod
       `Maker: ${state.maker}`,
       `Visual preset: ${visualPreset.name}`,
       `Color palette: ${colorPalette.name}`,
+      `Recommendation set: ${state.selectedRecommendationSet ?? "none"}`,
       `Tone: ${state.structure.visual_tone.join(", ")}`,
       `Layout density: ${state.structure.layout.density}`,
       `Spacing: ${state.structure.spacing.scale}`,
@@ -31,6 +32,7 @@ export function buildDesignSummary(options: PromptOptions, language: LanguageCod
     `Maker: ${state.maker}`,
     `ビジュアル: ${visualPreset.name}`,
     `カラー: ${colorPalette.name}`,
+    `おすすめセット: ${state.selectedRecommendationSet ?? "none"}`,
     `トーン: ${state.structure.visual_tone.join(", ")}`,
     `レイアウト密度: ${state.structure.layout.density}`,
     `余白: ${state.structure.spacing.scale}`,
@@ -227,6 +229,7 @@ function buildSelectedDirection(options: PromptOptions): string {
 
 - Visual preset: ${visualPreset.name}
 - Color palette: ${colorPalette.name}
+- Recommendation set: ${state.selectedRecommendationSet ?? "none"}
 - Maker: ${state.maker}
 - Translation mode: ${state.translationMode}
 - Conflict level: ${state.conflict?.level ?? "none"}

@@ -1,6 +1,6 @@
 import { colorPalettes, getColorPalette } from "./data/colorPalettes";
 import { sampleFeelingEn, sampleFeelingJa } from "./data/sampleOutputs";
-import { getVisualPreset, visualPresets } from "./data/visualPresets";
+import { getVisualPreset, normalizeVisualPresetId, visualPresets } from "./data/visualPresets";
 import { getDictionary } from "./i18n";
 import type { DesignStructure, LanguageCode, MakerState, TranslationConflict, TranslationMode } from "./types";
 import {
@@ -8,6 +8,7 @@ import {
   detectTranslationConflict,
   extractToneKeywords,
   getRecommendedColorPaletteIds,
+  getRecommendedSets,
   getRecommendedVisualPresetIds,
   mergeApiStructure,
   normalizeConflict,
@@ -185,8 +186,10 @@ function renderFeelingPanel(): string {
       <label class="field-label" for="feelingInput">Feeling</label>
       <textarea id="feelingInput" rows="5" placeholder="${placeholder}">${escapeHtml(state.feelingText)}</textarea>
       <div class="feeling-tags" id="feelingTags"></div>
+      <div class="recommendation-sets" id="recommendationSets"></div>
       <div class="conflict-box" id="conflictBox"></div>
       <button class="secondary-button" type="button" data-action="translate-api">${t.translateButton}</button>
+      <p class="button-note">${t.translateGuide}</p>
       <p class="status-line" id="statusLine" role="status" aria-live="polite">${statusMessage}</p>
     </section>
   `;
@@ -344,55 +347,49 @@ function renderLivePreview(): string {
     `--preview-topbar-min-height:${previewStyle.topbarMinHeight}`,
     `--preview-font-family:${getPreviewFontFamily(previewStyle.typography)}`,
   ].join(";");
-  const traits = [
-    [t.previewTraitLabels.spacing, previewStyle.spacing],
-    [t.previewTraitLabels.cardRadius, previewStyle.cardRadius],
-    [t.previewTraitLabels.buttonRadius, previewStyle.buttonRadius],
-    [t.previewTraitLabels.cardShadow, previewStyle.cardShadow],
-    [t.previewTraitLabels.typography, previewStyle.typography],
-    [t.previewTraitLabels.density, previewStyle.layoutDensity],
-    [t.previewTraitLabels.componentSize, previewStyle.componentSize],
-  ];
 
   return `
     <div class="product-preview" style="${vars}">
-      <div class="preview-state">
-        <strong>${t.currentPreview}</strong>
-        <span>${formatPreviewStateLine(t.currentVisual, preset.name)}</span>
-        <span>${formatPreviewStateLine(t.currentPalette, palette.name)}</span>
-        <span>${formatPreviewStateLine(t.currentMode, getTranslationModeLabel(state.translationMode))}</span>
+      <div class="preview-summary">
+        <strong>${preset.name} × ${palette.name}</strong>
+        <span>${getTranslationModeLabel(state.translationMode)}</span>
       </div>
-      <div class="preview-trait-grid" aria-label="selected preview traits">
-        ${traits
-          .map(
-            ([label, value]) => `
-              <span>
-                <small>${label}</small>
-                <strong>${value}</strong>
-              </span>
-            `,
-          )
-          .join("")}
-      </div>
-      <div class="preview-topbar">
-        <span>design.md</span>
-        <span>tokens.json</span>
-      </div>
-      <div class="preview-hero">
-        <p>AI Native Structure</p>
-        <h4>${preset.name}</h4>
-        <span>${palette.name}</span>
-      </div>
-      <div class="preview-content">
-        <div class="preview-copy">
-          <span></span>
+      <div class="preview-stage">
+        <div class="preview-topbar" aria-hidden="true">
           <span></span>
           <span></span>
         </div>
-        <div class="preview-card">
-          <strong>Component</strong>
-          <small>${previewStyle.layoutDensity} density / ${previewStyle.componentSize}</small>
-          <button type="button">Apply tokens</button>
+        <div class="preview-hero">
+          <p></p>
+          <h4>${preset.name}</h4>
+          <span></span>
+          <button type="button" aria-hidden="true"></button>
+        </div>
+      </div>
+      <div class="preview-scenes" aria-label="visual preview variants">
+        <div class="preview-scene preview-scene--landing">
+          <small>${t.landingPreview}</small>
+          <div class="scene-lines" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+        <div class="preview-scene preview-scene--component">
+          <small>${t.componentPreview}</small>
+          <div class="scene-component" aria-hidden="true">
+            <span></span>
+            <strong></strong>
+            <em></em>
+          </div>
+        </div>
+        <div class="preview-scene preview-scene--form">
+          <small>${t.formPreview}</small>
+          <div class="scene-form" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <button type="button"></button>
+          </div>
         </div>
       </div>
     </div>
@@ -434,6 +431,7 @@ function handleClick(event: MouseEvent): void {
   if (action === "select-preset" && id) {
     rejectedVisuals.delete(id);
     state.selectedVisualPreset = id;
+    state.selectedRecommendationSet = undefined;
     refreshFallbackStructure();
     trackEvent("visual_preset_select", analyticsStateParams());
     render();
@@ -446,6 +444,7 @@ function handleClick(event: MouseEvent): void {
       const nextPreset = visualPresets.find((preset) => !rejectedVisuals.has(preset.id)) ?? visualPresets[0];
       state.selectedVisualPreset = nextPreset.id;
     }
+    state.selectedRecommendationSet = undefined;
     refreshFallbackStructure();
     trackEvent("visual_preset_select", analyticsStateParams());
     render();
@@ -454,8 +453,33 @@ function handleClick(event: MouseEvent): void {
 
   if (action === "select-palette" && id) {
     state.selectedColorPalette = id;
+    state.selectedRecommendationSet = undefined;
     refreshFallbackStructure();
     trackEvent("color_palette_select", analyticsStateParams());
+    render();
+    return;
+  }
+
+  if (action === "select-recommendation-set") {
+    const visualId = actionTarget.dataset.visualId;
+    const paletteId = actionTarget.dataset.paletteId;
+    const setId = actionTarget.dataset.setId;
+    const setIndex = Number(actionTarget.dataset.setIndex ?? 0);
+
+    if (!visualId || !paletteId || !setId) {
+      return;
+    }
+
+    state.selectedVisualPreset = visualId;
+    state.selectedColorPalette = paletteId;
+    state.selectedRecommendationSet = setId;
+    refreshFallbackStructure();
+    trackEvent("recommended_set_select", {
+      ...analyticsStateParams(),
+      recommendedSetIndex: setIndex,
+      selectedVisualPreset: visualId,
+      selectedColorPalette: paletteId,
+    });
     render();
     return;
   }
@@ -542,6 +566,7 @@ async function translateWithApi(): Promise<void> {
         interpretedFeelingTags: state.interpretedFeelingTags,
         selectedVisualPreset: state.selectedVisualPreset,
         selectedColorPalette: state.selectedColorPalette,
+        selectedRecommendationSet: state.selectedRecommendationSet,
         translationMode: state.translationMode,
       }),
     });
@@ -633,7 +658,7 @@ async function loadSettingsFile(file: File): Promise<void> {
     const parsed = JSON.parse(await file.text()) as Partial<MakerState>;
     const nextLanguage = parsed.language === "en" || parsed.language === "ja" ? parsed.language : state.language;
     const nextPreset = parsed.selectedVisualPreset
-      ? getVisualPreset(parsed.selectedVisualPreset).id
+      ? normalizeVisualPresetId(getVisualPreset(parsed.selectedVisualPreset).id)
       : state.selectedVisualPreset;
     const nextPalette = parsed.selectedColorPalette
       ? getColorPalette(parsed.selectedColorPalette).id
@@ -643,6 +668,8 @@ async function loadSettingsFile(file: File): Promise<void> {
       ? parsed.interpretedFeelingTags.filter((tag): tag is string => typeof tag === "string")
       : extractToneKeywords(nextFeelingText);
     const nextMode = isTranslationMode(parsed.translationMode) ? parsed.translationMode : "harmonize";
+    const nextRecommendationSet =
+      typeof parsed.selectedRecommendationSet === "string" ? parsed.selectedRecommendationSet : undefined;
     const nextConflict =
       normalizeConflict(parsed.conflict) ??
       detectTranslationConflict({
@@ -658,6 +685,7 @@ async function loadSettingsFile(file: File): Promise<void> {
       feelingText: nextFeelingText,
       selectedVisualPreset: nextPreset,
       selectedColorPalette: nextPalette,
+      selectedRecommendationSet: nextRecommendationSet,
       interpretedFeelingTags: nextTags,
       translationMode: nextMode,
       conflict: nextConflict,
@@ -689,6 +717,7 @@ function updateGeneratedViews(): void {
   const sourcePill = rootElement.querySelector<HTMLElement>("#sourcePill");
   const statusLine = rootElement.querySelector<HTMLElement>("#statusLine");
   const feelingTags = rootElement.querySelector<HTMLElement>("#feelingTags");
+  const recommendationSets = rootElement.querySelector<HTMLElement>("#recommendationSets");
   const conflictBox = rootElement.querySelector<HTMLElement>("#conflictBox");
   const designNextAction = rootElement.querySelector<HTMLElement>("#designNextAction");
   const structureNextAction = rootElement.querySelector<HTMLElement>("#structureNextAction");
@@ -714,6 +743,10 @@ function updateGeneratedViews(): void {
 
   if (feelingTags) {
     feelingTags.innerHTML = renderFeelingTags();
+  }
+
+  if (recommendationSets) {
+    recommendationSets.innerHTML = renderRecommendationSets();
   }
 
   if (conflictBox) {
@@ -749,6 +782,59 @@ function renderFeelingTags(): string {
     <div class="tag-row">
       ${tags.map((tag) => `<span>${tag}</span>`).join("")}
     </div>
+  `;
+}
+
+function renderRecommendationSets(): string {
+  const t = getDictionary(state.language);
+  const sets = getRecommendedSets(state.interpretedFeelingTags);
+
+  if (!sets.length) {
+    return "";
+  }
+
+  return `
+    <section class="recommendation-panel" aria-label="${t.recommendedSetsTitle}">
+      <h4>${t.recommendedSetsTitle}</h4>
+      <div class="recommendation-list">
+        ${sets
+          .map((set) => {
+            const visualPreset = getVisualPreset(set.visualPresetId);
+            const colorPalette = getColorPalette(set.colorPaletteId);
+            const isSelected = state.selectedRecommendationSet === set.id;
+
+            return `
+              <article class="recommendation-card ${isSelected ? "is-selected" : ""}">
+                <div class="recommendation-card__head">
+                  <strong>${t.recommendedSetLabel} ${set.index}</strong>
+                  <span>${visualPreset.name} × ${colorPalette.name}</span>
+                </div>
+                <div class="recommendation-meta">
+                  <span><b>${t.setVisualLabel}:</b> ${visualPreset.name}</span>
+                  <span><b>${t.setColorLabel}:</b> ${colorPalette.name}</span>
+                  <span><b>${t.setReasonLabel}:</b> ${set.reason[state.language]}</span>
+                </div>
+                <div class="recommendation-swatches" aria-hidden="true">
+                  ${Object.entries(colorPalette.colors)
+                    .slice(0, 5)
+                    .map(([, color]) => `<span style="background:${color}"></span>`)
+                    .join("")}
+                </div>
+                <button
+                  class="secondary-button"
+                  type="button"
+                  data-action="select-recommendation-set"
+                  data-set-id="${set.id}"
+                  data-set-index="${set.index}"
+                  data-visual-id="${visualPreset.id}"
+                  data-palette-id="${colorPalette.id}"
+                >${t.useRecommendationSet}</button>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    </section>
   `;
 }
 

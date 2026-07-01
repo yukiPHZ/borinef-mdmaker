@@ -28,6 +28,7 @@ ${structure.visual_tone.map((tone) => `- ${tone}`).join("\n")}
 
 Selected visual preset: ${visualPreset.name}
 Selected color palette: ${colorPalette.name}
+Selected recommendation set: ${state.selectedRecommendationSet ?? "none"}
 Translation mode: ${state.translationMode}
 Interpreted feeling tags: ${state.interpretedFeelingTags.join(", ") || "none"}
 
