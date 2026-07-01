@@ -23,6 +23,8 @@ let statusMessage = "";
 let nextActionMessage = "";
 let lastConflictEventKey = "";
 let lastExportCtaViewKey = "";
+let isCustomizeOpen = false;
+let isAgentOutputOpen = false;
 const rejectedVisuals = new Set<string>();
 
 export function mountApp(root: HTMLElement): void {
@@ -120,7 +122,6 @@ function render(): void {
             <aside class="input-rail" aria-label="input controls">
               ${renderFeelingPanel()}
               ${renderRecommendationPanel()}
-              ${renderCustomizePanel()}
             </aside>
 
             <section class="preview-rail" id="selectedPreviewRail" aria-labelledby="preview-title">
@@ -131,40 +132,9 @@ function render(): void {
               ${renderLivePreview()}
             </section>
 
-            <aside class="output-rail" aria-label="generated output">
-              <section class="output-panel">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">Structure</p>
-                    <h3>${t.structureTitle}</h3>
-                  </div>
-                  <span class="source-pill" id="sourcePill">${t.standardConversion}</span>
-                </div>
-                <pre class="code-preview" id="structurePreview"></pre>
-                <button class="secondary-button" type="button" data-action="copy-structure">${t.copyStructure}</button>
-                <p class="next-action" id="structureNextAction"></p>
-              </section>
-
-              <section class="output-panel">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">Free</p>
-                    <h3>${t.designPreviewTitle}</h3>
-                  </div>
-                </div>
-                <pre class="code-preview code-preview--large" id="designPreview"></pre>
-                <div class="output-action-stack">
-                  <button class="primary-button primary-button--full" type="button" data-action="copy-design">${t.copyDesign}</button>
-                  <button class="secondary-button primary-button--full" type="button" data-action="paid-export">${t.paidExport}</button>
-                </div>
-                <p class="button-note">${t.zipIncludes}</p>
-                <p class="next-action" id="designNextAction"></p>
-                <div class="settings-row">
-                  <input class="sr-only" id="settingsFile" type="file" accept=".json,application/json" />
-                  <label class="secondary-button secondary-button--file" for="settingsFile">${t.settingsUpload}</label>
-                  <button class="secondary-button" type="button" data-action="download-settings">${t.downloadSettings}</button>
-                </div>
-              </section>
+            <aside class="secondary-rail" aria-label="customize and generated output">
+              ${renderCustomizePanel()}
+              ${renderAgentOutputPanel()}
             </aside>
           </div>
         </section>
@@ -219,7 +189,6 @@ function renderRecommendationPanel(): string {
       <div class="recommendation-sets" id="recommendationSets">
         ${renderRecommendationSets()}
       </div>
-      ${renderExportCtaBlock()}
     </section>
   `;
 }
@@ -228,13 +197,56 @@ function renderCustomizePanel(): string {
   const t = getDictionary(state.language);
 
   return `
-    <details class="control-panel customize-details" id="customizeDetails">
+    <details class="control-panel accordion-panel customize-details" id="customizeDetails" ${isCustomizeOpen ? "open" : ""}>
       <summary>
         <span>${t.customizeDetailsTitle}</span>
       </summary>
       <div class="customize-content">
         ${renderVisualPanel()}
         ${renderColorPanel()}
+      </div>
+    </details>
+  `;
+}
+
+function renderAgentOutputPanel(): string {
+  const t = getDictionary(state.language);
+
+  return `
+    <details class="control-panel accordion-panel agent-output-details" id="agentOutputDetails" ${isAgentOutputOpen ? "open" : ""}>
+      <summary>
+        <span>${t.reviewAgentOutputTitle}</span>
+      </summary>
+      <div class="agent-output-content">
+        <section class="output-panel output-panel--inline">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Structure</p>
+              <h3>${t.structureTitle}</h3>
+            </div>
+            <span class="source-pill" id="sourcePill">${t.standardConversion}</span>
+          </div>
+          <pre class="code-preview" id="structurePreview"></pre>
+          <button class="secondary-button" type="button" data-action="copy-structure">${t.copyStructure}</button>
+          <p class="next-action" id="structureNextAction"></p>
+        </section>
+
+        <section class="output-panel output-panel--inline">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Free</p>
+              <h3>${t.designPreviewTitle}</h3>
+            </div>
+          </div>
+          <pre class="code-preview code-preview--large" id="designPreview"></pre>
+          <button class="secondary-button primary-button--full" type="button" data-action="copy-design">${t.copyDesign}</button>
+          <p class="next-action" id="designNextAction"></p>
+          <div class="settings-row">
+            <input class="sr-only" id="settingsFile" type="file" accept=".json,application/json" />
+            <label class="secondary-button secondary-button--file" for="settingsFile">${t.settingsUpload}</label>
+            <button class="secondary-button" type="button" data-action="download-settings">${t.downloadSettings}</button>
+          </div>
+        </section>
       </div>
     </details>
   `;
@@ -436,6 +448,8 @@ function handleClick(event: MouseEvent): void {
     return;
   }
 
+  event.preventDefault();
+
   const action = actionTarget.dataset.action;
   const id = actionTarget.dataset.id;
 
@@ -458,7 +472,7 @@ function handleClick(event: MouseEvent): void {
     refreshFallbackStructure();
     trackEvent("visual_preset_select", analyticsStateParams());
     trackEvent("customize_details_change", analyticsStateParams());
-    render();
+    updateInteractiveViews();
     return;
   }
 
@@ -472,7 +486,7 @@ function handleClick(event: MouseEvent): void {
     refreshFallbackStructure();
     trackEvent("visual_preset_select", analyticsStateParams());
     trackEvent("customize_details_change", analyticsStateParams());
-    render();
+    updateInteractiveViews();
     return;
   }
 
@@ -482,7 +496,7 @@ function handleClick(event: MouseEvent): void {
     refreshFallbackStructure();
     trackEvent("color_palette_select", analyticsStateParams());
     trackEvent("customize_details_change", analyticsStateParams());
-    render();
+    updateInteractiveViews();
     return;
   }
 
@@ -513,8 +527,7 @@ function handleClick(event: MouseEvent): void {
       selectedVisualPreset: visualId,
       selectedColorPalette: paletteId,
     });
-    render();
-    scrollToExportCta();
+    updateInteractiveViews();
     trackExportCtaViewIfNeeded();
     return;
   }
@@ -528,7 +541,7 @@ function handleClick(event: MouseEvent): void {
     state.translationMode = id;
     refreshFallbackStructure();
     trackEvent("translation_mode_select", analyticsStateParams());
-    updateGeneratedViews();
+    updateInteractiveViews();
     return;
   }
 
@@ -571,11 +584,20 @@ function handleChange(event: Event): void {
 
 function handleToggle(event: Event): void {
   const target = event.target as HTMLDetailsElement;
-  if (target.id !== "customizeDetails" || !target.open) {
+  if (target.id === "agentOutputDetails") {
+    isAgentOutputOpen = target.open;
     return;
   }
 
-  trackEvent("customize_details_open", analyticsStateParams());
+  if (target.id !== "customizeDetails") {
+    return;
+  }
+
+  const wasOpen = isCustomizeOpen;
+  isCustomizeOpen = target.open;
+  if (!wasOpen && target.open) {
+    trackEvent("customize_details_open", analyticsStateParams());
+  }
 }
 
 function refreshFallbackStructure(): void {
@@ -814,6 +836,7 @@ function updateGeneratedViews(): void {
   }
 
   updateRecommendationBadges();
+  updateChoiceSelectionStates();
   trackExportCtaViewIfNeeded();
 
   if (designNextAction) {
@@ -823,6 +846,20 @@ function updateGeneratedViews(): void {
   if (structureNextAction) {
     structureNextAction.textContent = nextActionMessage === t.structureNextAction ? nextActionMessage : "";
   }
+}
+
+function updateInteractiveViews(): void {
+  updateLivePreview();
+  updateGeneratedViews();
+}
+
+function updateLivePreview(): void {
+  const preview = rootElement.querySelector<HTMLElement>("#selectedPreviewRail .product-preview");
+  if (!preview) {
+    return;
+  }
+
+  preview.outerHTML = renderLivePreview();
 }
 
 function setStatus(message: string): void {
@@ -905,6 +942,7 @@ function renderRecommendationSets(): string {
                   data-palette-id="${colorPalette.id}"
                 >${t.useRecommendationSet}</button>
               </article>
+              ${isSelected ? renderExportCtaBlock() : ""}
             `;
           })
           .join("")}
@@ -1006,6 +1044,18 @@ function updateRecommendationBadges(): void {
   });
 }
 
+function updateChoiceSelectionStates(): void {
+  rootElement.querySelectorAll<HTMLElement>(".preset-card[data-id]").forEach((card) => {
+    const id = card.dataset.id ?? "";
+    card.classList.toggle("is-selected", id === state.selectedVisualPreset);
+    card.classList.toggle("is-rejected", rejectedVisuals.has(id));
+  });
+
+  rootElement.querySelectorAll<HTMLElement>(".palette-card[data-id]").forEach((card) => {
+    card.classList.toggle("is-selected", card.dataset.id === state.selectedColorPalette);
+  });
+}
+
 function getTranslationModeLabel(mode: TranslationMode): string {
   const t = getDictionary(state.language);
 
@@ -1028,22 +1078,17 @@ function isRecommendationExportReady(): boolean {
   return Boolean(state.selectedRecommendationSet);
 }
 
-function scrollToExportCta(): void {
-  window.setTimeout(() => {
-    rootElement
-      .querySelector<HTMLElement>("#exportCtaBlock")
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, 0);
-}
-
 function openCustomizeDetails(): void {
-  const details = rootElement.querySelector<HTMLDetailsElement>("#customizeDetails");
-  if (!details) {
+  if (isCustomizeOpen) {
     return;
   }
 
-  details.open = true;
-  details.scrollIntoView({ behavior: "smooth", block: "start" });
+  isCustomizeOpen = true;
+  const details = rootElement.querySelector<HTMLDetailsElement>("#customizeDetails");
+  if (details) {
+    details.open = true;
+  }
+  trackEvent("customize_details_open", analyticsStateParams());
 }
 
 function getSelectedRecommendationIndex(): number | undefined {

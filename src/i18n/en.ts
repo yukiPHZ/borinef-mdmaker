@@ -49,6 +49,7 @@ export const en = {
   changeVisualTitle: "Change visual direction",
   changeColorTitle: "Change color palette",
   customizedFromRecommendation: "Customized from recommendation",
+  reviewAgentOutputTitle: "Review AI agent output",
   previewTitle: "Selected Preview",
   currentPreview: "Current preview:",
   currentVisual: "Visual",

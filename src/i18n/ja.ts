@@ -49,6 +49,7 @@ export const ja = {
   changeVisualTitle: "見た目の方向を変更",
   changeColorTitle: "色を変更",
   customizedFromRecommendation: "おすすめセットからカスタムしました",
+  reviewAgentOutputTitle: "AIエージェント向け出力を確認",
   previewTitle: "選択結果プレビュー",
   currentPreview: "反映中：",
   currentVisual: "見た目",

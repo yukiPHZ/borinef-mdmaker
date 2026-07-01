@@ -345,21 +345,30 @@ h1 {
 
 .maker-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 0.98fr) minmax(320px, 1.04fr) minmax(330px, 1fr);
+  grid-template-columns: minmax(320px, 0.84fr) minmax(420px, 1.16fr);
   gap: 14px;
   align-items: start;
 }
 
 .input-rail,
 .preview-rail,
-.output-rail {
+.secondary-rail {
   min-width: 0;
 }
 
 .input-rail,
-.output-rail {
+.secondary-rail {
   display: grid;
   gap: 12px;
+}
+
+.secondary-rail {
+  grid-column: 1;
+}
+
+.preview-rail {
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .control-panel,
@@ -597,7 +606,7 @@ textarea:focus {
   font-size: 0.78rem;
 }
 
-.customize-details summary {
+.accordion-panel summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -608,11 +617,11 @@ textarea:focus {
   list-style: none;
 }
 
-.customize-details summary::-webkit-details-marker {
+.accordion-panel summary::-webkit-details-marker {
   display: none;
 }
 
-.customize-details summary::after {
+.accordion-panel summary::after {
   content: "+";
   display: inline-flex;
   align-items: center;
@@ -626,11 +635,11 @@ textarea:focus {
   font-weight: 500;
 }
 
-.customize-details[open] summary {
+.accordion-panel[open] summary {
   margin-bottom: 14px;
 }
 
-.customize-details[open] summary::after {
+.accordion-panel[open] summary::after {
   content: "-";
 }
 
@@ -646,6 +655,18 @@ textarea:focus {
 .customize-block + .customize-block {
   padding-top: 16px;
   border-top: 1px solid var(--line);
+}
+
+.agent-output-content {
+  display: grid;
+  gap: 18px;
+}
+
+.output-panel--inline {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .conflict-card {
@@ -1180,12 +1201,7 @@ textarea:focus {
 
 @media (max-width: 1180px) {
   .maker-grid {
-    grid-template-columns: minmax(290px, 0.9fr) minmax(320px, 1.1fr);
-  }
-
-  .output-rail {
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
   }
 
   .product-preview {
@@ -1210,10 +1226,13 @@ textarea:focus {
   }
 
   .preview-rail {
+    grid-column: auto;
+    grid-row: auto;
     position: static;
   }
 
-  .output-rail {
+  .secondary-rail {
+    grid-column: auto;
     grid-template-columns: 1fr;
   }
 
