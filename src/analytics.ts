@@ -27,9 +27,14 @@ interface AnalyticsParams {
   translationMode?: TranslationMode;
   conflictLevel?: string;
   language?: LanguageCode;
+  tagCount?: number;
   recommendedSetIndex?: number;
   isCustomizedFromRecommendation?: boolean;
-  exportAction?: "copy_design" | "zip_export";
+  exportType?: "copy_design" | "zip_export" | "settings";
+  currency?: "JPY" | "USD";
+  price?: number;
+  stripeEnabled?: boolean;
+  fileCount?: number;
 }
 
 declare global {
@@ -73,7 +78,7 @@ export function trackEvent(name: AnalyticsEventName, params: AnalyticsParams = {
     site: "borinef",
     product: "mdmaker",
     maker: "design.md",
-    phase: "phase2",
+    phase: "phase3",
     source: "borinef-mdmaker",
     ...params,
   });

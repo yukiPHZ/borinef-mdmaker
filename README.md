@@ -224,3 +224,80 @@ APIキーの値は返しません。
 - `workflow.md maker`
 - `company.md maker`
 - `service.md maker`
+
+## Production environment variables
+
+Production URL:
+
+```text
+https://mdmaker.borinef.com/
+```
+
+Cloudflare Pages preview URL:
+
+```text
+https://borinef-mdmaker.pages.dev/
+```
+
+Required and optional production environment variables:
+
+- `VITE_GA_MEASUREMENT_ID`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PRICE_ID_JPY`
+- `STRIPE_PRICE_ID_USD`
+
+For Phase 3B, Stripe variables may remain unset. In that state, ZIP export falls back to the local ZIP generator and `/api/health` should report `hasStripeKey: false`.
+
+`VITE_GA_MEASUREMENT_ID` is embedded at Vite build time. After adding or changing it in Cloudflare Pages, redeploy the project so the production bundle includes the new value.
+
+Search Console verification should be added to `index.html` at this slot when the real verification value is available:
+
+```html
+<!-- Search Console verification meta goes here -->
+```
+
+Do not add an empty verification meta tag.
+
+## Analytics policy
+
+GA4 is initialized only when `VITE_GA_MEASUREMENT_ID` is set. If the variable is missing, analytics is a no-op and the app continues to work.
+
+GA4 events include shared market-observation parameters only:
+
+```json
+{
+  "site": "borinef",
+  "product": "mdmaker",
+  "maker": "design.md",
+  "phase": "phase3",
+  "source": "borinef-mdmaker"
+}
+```
+
+Allowed event parameters include `language`, `tagCount`, `conflictLevel`, `selectedVisualPreset`, `selectedColorPalette`, `translationMode`, `recommendedSetIndex`, `isCustomizedFromRecommendation`, `exportType`, `currency`, `price`, `stripeEnabled`, and `fileCount`.
+
+GA4 must not receive free-form feeling text, full `settings.json`, full `design.md`, full AI Native Structure output, ZIP contents, API keys, secrets, or personal information.
+
+Current GA4 event names:
+
+- `mdmaker_view`
+- `feeling_translate`
+- `recommended_set_select`
+- `recommendation_use`
+- `export_cta_view`
+- `export_cta_click`
+- `design_md_copy`
+- `zip_export_click`
+- `zip_export_download`
+- `customize_details_open`
+- `customize_details_change`
+- `visual_preset_select`
+- `color_palette_select`
+- `conflict_detected`
+- `translation_mode_select`
+- `structure_copy`
+- `settings_download`
+- `settings_import`
+- `language_switch`

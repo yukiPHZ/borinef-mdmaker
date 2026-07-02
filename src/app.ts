@@ -568,7 +568,11 @@ function handleClick(event: MouseEvent): void {
   if (action === "download-settings") {
     const files = buildGeneratedFiles(state);
     downloadTextFile("settings.json", files["settings.json"], "application/json");
-    trackEvent("settings_download", analyticsStateParams());
+    trackEvent("settings_download", {
+      ...analyticsStateParams(),
+      exportType: "settings",
+      fileCount: 1,
+    });
   }
 }
 
@@ -677,10 +681,15 @@ async function copyDesignMd(): Promise<void> {
   nextActionMessage = ok ? t.designNextAction : "";
   setStatus(ok ? t.copied : t.copyFailed);
   if (ok) {
-    trackEvent("design_md_copy", analyticsStateParams());
+    trackEvent("design_md_copy", {
+      ...analyticsStateParams(),
+      exportType: "copy_design",
+      fileCount: 1,
+    });
     trackEvent("export_cta_click", {
       ...analyticsStateParams(),
-      exportAction: "copy_design",
+      exportType: "copy_design",
+      fileCount: 1,
     });
   }
 }
@@ -697,10 +706,16 @@ async function copyStructure(): Promise<void> {
 
 async function requestCheckoutOrDownload(): Promise<void> {
   const t = getDictionary(state.language);
-  trackEvent("zip_export_click", analyticsStateParams());
-  trackEvent("export_cta_click", {
+  const zipAnalyticsParams = {
     ...analyticsStateParams(),
-    exportAction: "zip_export",
+    exportType: "zip_export" as const,
+    currency: "JPY" as const,
+    price: 300,
+  };
+
+  trackEvent("zip_export_click", zipAnalyticsParams);
+  trackEvent("export_cta_click", {
+    ...zipAnalyticsParams,
   });
 
   try {
@@ -727,7 +742,11 @@ async function requestCheckoutOrDownload(): Promise<void> {
   }
 
   await downloadExportZip(state);
-  trackEvent("zip_export_download", analyticsStateParams());
+  trackEvent("zip_export_download", {
+    ...zipAnalyticsParams,
+    stripeEnabled: false,
+    fileCount: Object.keys(buildGeneratedFiles(state)).length,
+  });
   setStatus(t.checkoutUnavailable);
 }
 
@@ -1151,6 +1170,7 @@ function analyticsStateParams() {
     translationMode: state.translationMode,
     conflictLevel: state.conflict?.level ?? "none",
     language: state.language,
+    tagCount: state.interpretedFeelingTags.length,
     recommendedSetIndex: getSelectedRecommendationIndex(),
     isCustomizedFromRecommendation: state.isCustomizedFromRecommendation,
   };
