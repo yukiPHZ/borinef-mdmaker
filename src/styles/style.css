@@ -1173,6 +1173,50 @@ textarea:focus {
   line-height: 1.65;
 }
 
+.analytics-privacy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  width: min(100% - 36px, 1240px);
+  margin: 0 auto 34px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.analytics-privacy h2 {
+  margin-bottom: 6px;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.analytics-privacy p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.analytics-privacy__status {
+  margin-top: 8px !important;
+  color: var(--forest) !important;
+  font-weight: 700;
+}
+
+.analytics-privacy__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.analytics-privacy__actions .primary-button,
+.analytics-privacy__actions .secondary-button {
+  min-width: 108px;
+}
+
 .site-footer {
   display: flex;
   justify-content: space-between;
@@ -1268,7 +1312,13 @@ textarea:focus {
   .choice-row,
   .mode-row,
   .preview-content,
-  .preview-scenes {
+  .preview-scenes,
+  .analytics-privacy {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-privacy__actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
