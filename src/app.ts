@@ -14,7 +14,7 @@ import {
   normalizeConflict,
   structureToYaml,
 } from "./engine/translateFeeling";
-import { initAnalytics, trackEvent } from "./analytics";
+import { initAnalytics, refreshAnalyticsConsentUi, trackEvent } from "./analytics";
 import { buildGeneratedFiles, downloadExportZip, downloadTextFile } from "./zip/buildZip";
 
 let rootElement: HTMLElement;
@@ -140,6 +140,8 @@ function render(): void {
         </section>
       </main>
 
+      ${renderAnalyticsPrivacy()}
+
       <footer class="site-footer">
         <span>BORINEF Labs</span>
         <span>mdmaker.borinef.com</span>
@@ -148,6 +150,27 @@ function render(): void {
   `;
 
   updateGeneratedViews();
+  refreshAnalyticsConsentUi();
+}
+
+function renderAnalyticsPrivacy(): string {
+  return `
+    <section class="analytics-privacy" aria-labelledby="analytics-privacy-title">
+      <div class="analytics-privacy__copy">
+        <p class="eyebrow">Privacy</p>
+        <h2 id="analytics-privacy-title">匿名の利用状況計測</h2>
+        <p>
+          BORINEF Labsは、Google Analyticsを使用してページ表示や安全な操作種別だけを確認します。
+          入力本文、出力本文、clipboard本文、価格、購入者情報、URLのqueryやhashは送信しません。
+        </p>
+        <p id="market-observer-consent-status" class="analytics-privacy__status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="analytics-privacy__actions">
+        <button id="market-observer-consent-allow" class="primary-button" type="button">許可する</button>
+        <button id="market-observer-consent-deny" class="secondary-button" type="button">許可しない</button>
+      </div>
+    </section>
+  `;
 }
 
 function renderFeelingPanel(): string {
@@ -669,7 +692,10 @@ async function translateWithApi(): Promise<void> {
     setStatus(t.standardConversion);
   }
 
-  trackEvent("feeling_translate", analyticsStateParams());
+  trackEvent("feeling_translate", {
+    ...analyticsStateParams(),
+    inputPresent: state.feelingText.trim().length > 0,
+  });
   trackConflictIfNeeded();
   updateGeneratedViews();
 }
@@ -709,8 +735,6 @@ async function requestCheckoutOrDownload(): Promise<void> {
   const zipAnalyticsParams = {
     ...analyticsStateParams(),
     exportType: "zip_export" as const,
-    currency: "JPY" as const,
-    price: 300,
   };
 
   trackEvent("zip_export_click", zipAnalyticsParams);
@@ -733,6 +757,9 @@ async function requestCheckoutOrDownload(): Promise<void> {
     if (response.ok) {
       const data = (await response.json()) as { checkoutUrl?: string };
       if (data.checkoutUrl) {
+        trackEvent("stripe_outbound", {
+          ...zipAnalyticsParams,
+        });
         window.location.href = data.checkoutUrl;
         return;
       }
