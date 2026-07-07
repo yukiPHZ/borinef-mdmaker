@@ -1217,6 +1217,53 @@ textarea:focus {
   min-width: 108px;
 }
 
+.analytics-privacy__actions .market-observer-consent-button {
+  min-height: 44px;
+  padding: 9px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  box-shadow: none;
+  transform: none;
+}
+
+.analytics-privacy__actions .market-observer-consent-button[data-action="allow"] {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.analytics-privacy__actions .market-observer-consent-button[data-action="allow"]:hover,
+.analytics-privacy__actions .market-observer-consent-button[data-action="allow"]:focus-visible {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.analytics-privacy__actions .market-observer-consent-button[data-action="deny"] {
+  border-color: #6b7280;
+  background: #fff;
+  color: var(--ink);
+}
+
+.analytics-privacy__actions .market-observer-consent-button[data-action="deny"]:hover,
+.analytics-privacy__actions .market-observer-consent-button[data-action="deny"]:focus-visible {
+  border-color: #2563eb;
+  background: #f9fafb;
+  color: var(--ink);
+}
+
+.analytics-privacy__actions .market-observer-consent-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.analytics-privacy__actions .market-observer-consent-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .site-footer {
   display: flex;
   justify-content: space-between;
