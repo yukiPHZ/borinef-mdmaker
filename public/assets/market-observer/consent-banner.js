@@ -8,6 +8,7 @@
   const STYLE_ID = "market-observer-consent-style";
   const CHANGE_BUTTON_CLASS = "market-observer-consent-change";
   const VALID_STATES = new Set(["granted", "denied"]);
+  const BUTTON_CLASS = "market-observer-consent-button";
 
   const MESSAGES = {
     ja: {
@@ -106,16 +107,21 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = [
-      ".market-observer-consent-banner{position:fixed;left:16px;right:16px;bottom:16px;z-index:2147483000;background:#fff;color:#111;border:1px solid #111;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:16px;max-width:760px;margin:0 auto;font:14px/1.6 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
+      ".market-observer-consent-banner{--mo-consent-allow-bg:#2563EB;--mo-consent-allow-text:#FFFFFF;--mo-consent-allow-hover-bg:#1D4ED8;--mo-consent-deny-bg:#FFFFFF;--mo-consent-deny-text:currentColor;--mo-consent-deny-border:#6B7280;--mo-consent-focus-ring:#2563EB;position:fixed;left:16px;right:16px;bottom:16px;z-index:2147483000;background:#fff;color:#111;border:1px solid #111;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:16px;max-width:760px;margin:0 auto;font:14px/1.6 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
       ".market-observer-consent-banner h2{font-size:16px;line-height:1.35;margin:0 0 8px;font-weight:700;letter-spacing:0}",
       ".market-observer-consent-banner p{margin:0 0 6px}",
       ".market-observer-consent-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}",
-      ".market-observer-consent-button{appearance:none;border:1px solid #111;background:#fff;color:#111;border-radius:4px;padding:8px 14px;font:inherit;min-height:40px;cursor:pointer}",
-      ".market-observer-consent-button:hover,.market-observer-consent-button:focus-visible{outline:2px solid #111;outline-offset:2px}",
+      ".market-observer-consent-button{appearance:none;border:1px solid transparent;border-radius:4px;padding:9px 16px;font:inherit;font-size:14px;line-height:1.25;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none}",
+      ".market-observer-consent-button[data-action='allow']{background:var(--mo-consent-allow-bg);color:var(--mo-consent-allow-text);border-color:var(--mo-consent-allow-bg);font-weight:700}",
+      ".market-observer-consent-button[data-action='allow']:hover{background:var(--mo-consent-allow-hover-bg);border-color:var(--mo-consent-allow-hover-bg)}",
+      ".market-observer-consent-button[data-action='deny']{background:var(--mo-consent-deny-bg);color:var(--mo-consent-deny-text);border-color:var(--mo-consent-deny-border);font-weight:700}",
+      ".market-observer-consent-button[data-action='deny']:hover{background:#F9FAFB}",
+      ".market-observer-consent-button[data-action='details']{background:transparent;color:inherit;border-color:transparent;font-weight:400;text-decoration:underline;text-underline-offset:2px}",
+      ".market-observer-consent-button:hover,.market-observer-consent-button:focus-visible{outline:2px solid var(--mo-consent-focus-ring);outline-offset:2px}",
       ".market-observer-consent-button:disabled{opacity:.55;cursor:not-allowed}",
       ".market-observer-consent-change{appearance:none;border:1px solid currentColor;background:transparent;color:inherit;border-radius:4px;padding:6px 10px;font:inherit;cursor:pointer}",
       ".market-observer-consent-change:hover,.market-observer-consent-change:focus-visible{outline:2px solid currentColor;outline-offset:2px}",
-      "@media (max-width:640px){.market-observer-consent-banner{left:8px;right:8px;bottom:8px;padding:12px;font-size:13px}.market-observer-consent-actions{display:grid;grid-template-columns:1fr 1fr}.market-observer-consent-actions .market-observer-consent-button[data-action='details']{grid-column:1/-1}}",
+      "@media (max-width:640px){.market-observer-consent-banner{left:8px;right:8px;bottom:8px;padding:12px;font-size:13px}.market-observer-consent-actions{display:grid;grid-template-columns:1fr}.market-observer-consent-actions .market-observer-consent-button{width:100%}}",
     ].join("\n");
     (document.head || document.documentElement).appendChild(style);
   }
@@ -154,11 +160,22 @@
 
   function button(document, text, action) {
     const element = document.createElement("button");
-    element.className = "market-observer-consent-button";
+    element.className = BUTTON_CLASS;
     element.type = "button";
     element.dataset.action = action;
     element.textContent = text;
     return element;
+  }
+
+  function applyButtonRole(element, action) {
+    if (!element) return;
+    if (element.classList && typeof element.classList.add === "function") {
+      element.classList.add(BUTTON_CLASS);
+    } else if (!String(element.className || "").split(/\s+/).includes(BUTTON_CLASS)) {
+      element.className = `${element.className || ""} ${BUTTON_CLASS}`.trim();
+    }
+    if (!element.dataset) element.dataset = {};
+    element.dataset.action = action;
   }
 
   function showBanner(options, force) {
@@ -219,6 +236,9 @@
     const allowButton = document.querySelector("#market-observer-consent-allow");
     const denyButton = document.querySelector("#market-observer-consent-deny");
     if (!status || !allowButton || !denyButton) return;
+    ensureStyle(document);
+    applyButtonRole(allowButton, "allow");
+    applyButtonRole(denyButton, "deny");
 
     allowButton.hidden = false;
     denyButton.hidden = false;
