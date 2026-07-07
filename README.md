@@ -152,20 +152,19 @@ STRIPE_PRICE_ID_JPY
 STRIPE_PRICE_ID_USD
 ```
 
-Stripeが未設定の場合、フロント側は開発用フォールバックとしてZIPを直接生成します。
-本番では決済完了後にZIP出力を解放する設計を想定しています。
+Stripeが未設定の場合、購入ボタンは `stripe_not_configured` 相当の案内を表示し、公開UIから未決済ZIPを直接生成しません。
+本番では決済完了後にサーバー側でZIP出力を生成します。
 
-### GA4
+### Analytics
 
 ```text
-VITE_GA_MEASUREMENT_ID
+project_id=borinef_mdmaker
+surface=web_tool
+tracker_version=1.0.0
 ```
 
-未設定の場合は何もしません。
-イベントには自由入力全文、`settings.json` の本文、APIキー、Secretを送りません。
-
-送信対象は、選択プリセット、選択パレット、翻訳モード、矛盾レベル、UI言語などの市場観測用メタ情報だけです。
-Phase 2Eでは、`recommendation_use`、`export_cta_view`、`export_cta_click`、`customize_details_open`、`customize_details_change` も送信対象です。
+解析は明示的な同意後にのみ有効化され、Global Privacy Controlが有効な場合はブロックされます。
+イベントには自由入力全文、生成結果本文、`settings.json` の本文、Stripe URL、Checkout Session ID、APIキー、Secret、個人情報を送りません。
 
 ## API
 
@@ -225,7 +224,7 @@ APIキーの値は返しません。
 - `company.md maker`
 - `service.md maker`
 
-## Production environment variables
+## Phase 3C-D paid export launch notes
 
 Production URL:
 
@@ -239,65 +238,129 @@ Cloudflare Pages preview URL:
 https://borinef-mdmaker.pages.dev/
 ```
 
-Required and optional production environment variables:
+Required Cloudflare Pages environment variables for paid export:
 
-- `VITE_GA_MEASUREMENT_ID`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PRICE_ID_JPY`
 - `STRIPE_PRICE_ID_USD`
+- `PUBLIC_SITE_URL`
 
-For Phase 3B, Stripe variables may remain unset. In that state, ZIP export falls back to the local ZIP generator and `/api/health` should report `hasStripeKey: false`.
+`PUBLIC_SITE_URL` should be `https://mdmaker.borinef.com`. Checkout success redirects to `/?checkout=success&session_id={CHECKOUT_SESSION_ID}` and the app removes the query string before analytics initialization.
 
-`VITE_GA_MEASUREMENT_ID` is embedded at Vite build time. After adding or changing it in Cloudflare Pages, redeploy the project so the production bundle includes the new value.
+Stripe Product and Price requirements:
 
-Search Console verification should be added to `index.html` at this slot when the real verification value is available:
+- Product name: `BORINEF md maker Export Pack`
+- Product metadata: `app=borinef-mdmaker`, `product_code=design-md-export-v1`
+- JPY Price: `jpy`, `unit_amount=300`, one-time, lookup key `borinef_mdmaker_export_jpy_v1`
+- USD Price: `usd`, `unit_amount=300`, one-time, lookup key `borinef_mdmaker_export_usd_v1`
 
-```html
-<!-- Search Console verification meta goes here -->
-```
+Price IDs must be stored only in Cloudflare environment variables. Browser code does not send price IDs, amounts, or currency.
 
-Do not add an empty verification meta tag.
+## Paid export API
 
-## Analytics policy
+### `POST /api/create-checkout-session`
 
-GA4 is initialized only when `VITE_GA_MEASUREMENT_ID` is set. If the variable is missing, analytics is a no-op and the app continues to work.
-
-GA4 events include shared market-observation parameters only:
+Request body:
 
 ```json
 {
-  "site": "borinef",
-  "product": "mdmaker",
-  "maker": "design.md",
-  "phase": "phase3",
-  "source": "borinef-mdmaker"
+  "locale": "ja",
+  "exportSpec": {
+    "schemaVersion": 1,
+    "language": "ja",
+    "visualPresetId": "quiet-editorial",
+    "colorPaletteId": "warm-paper",
+    "translationMode": "harmonize",
+    "normalizedToneTags": ["quiet", "structured"],
+    "selectedRecommendationSet": "set-1",
+    "isCustomizedFromRecommendation": false
+  }
 }
 ```
 
-Allowed event parameters include `language`, `tagCount`, `conflictLevel`, `selectedVisualPreset`, `selectedColorPalette`, `translationMode`, `recommendedSetIndex`, `isCustomizedFromRecommendation`, `exportType`, `currency`, `price`, `stripeEnabled`, and `fileCount`.
+The server validates `ExportSpecV1`, maps `ja` to `STRIPE_PRICE_ID_JPY`, maps `en` to `STRIPE_PRICE_ID_USD`, and sends only compact structured metadata to Stripe.
 
-GA4 must not receive free-form feeling text, full `settings.json`, full `design.md`, full AI Native Structure output, ZIP contents, API keys, secrets, or personal information.
+### `GET /api/checkout-status?session_id=...`
 
-Current GA4 event names:
+Verifies the Checkout Session server-side and returns:
 
-- `mdmaker_view`
-- `feeling_translate`
-- `recommended_set_select`
-- `recommendation_use`
-- `export_cta_view`
-- `export_cta_click`
-- `design_md_copy`
-- `zip_export_click`
-- `zip_export_download`
-- `customize_details_open`
-- `customize_details_change`
-- `visual_preset_select`
-- `color_palette_select`
-- `conflict_detected`
-- `translation_mode_select`
-- `structure_copy`
-- `settings_download`
-- `settings_import`
-- `language_switch`
+```json
+{
+  "paid": true,
+  "currency": "jpy",
+  "amount": 300,
+  "product": "design-md-export-v1"
+}
+```
+
+The response never returns the Stripe URL or Checkout Session ID.
+
+### `POST /api/download-export`
+
+Request body:
+
+```json
+{
+  "session_id": "cs_test_..."
+}
+```
+
+The server retrieves the Checkout Session, verifies `mode=payment`, `status=complete`, `payment_status=paid`, allowed price ID, quantity `1`, allowed product, and valid `ExportSpecV1` metadata before generating the ZIP.
+
+ZIP response headers:
+
+```text
+Content-Type: application/zip
+Content-Disposition: attachment; filename="borinef-design-md-export.zip"
+Cache-Control: private, no-store
+```
+
+The ZIP contains 9 files:
+
+- `design.md`
+- `design-summary.txt`
+- `tokens.json`
+- `tokens.css`
+- `tailwind.config.memo.md`
+- `codex-prompt.md`
+- `claude-code-prompt.md`
+- `cursor-prompt.md`
+- `settings.json`
+
+## Legal pages
+
+Legal pages are static and marked `noindex,follow`:
+
+- `/legal/terms.html`
+- `/legal/privacy.html`
+- `/legal/commercial-transactions.html`
+
+They are intentionally omitted from `public/sitemap.xml`.
+
+## Analytics policy
+
+The central market observer tracker uses:
+
+```json
+{
+  "project_id": "borinef_mdmaker",
+  "surface": "web_tool",
+  "tracker_version": "1.0.0"
+}
+```
+
+Analytics is explicit opt-in only. Global Privacy Control blocks analytics. Payment and download work independently of analytics consent.
+
+The client wrapper emits only canonical market-observer events:
+
+- `page_view`
+- `use_start`
+- `use_complete`
+- `copy_result`
+- `result_export`
+- `stripe_outbound`
+- `client_exception`
+
+Analytics must not receive free-form feeling text, generated output, Markdown bodies, prompts, full `settings.json`, ZIP contents, Stripe URLs, Checkout Session IDs, API keys, secrets, or personal information.

@@ -6,6 +6,8 @@ export type TranslationMode = "prefer_feeling" | "prefer_visual" | "harmonize";
 
 export type ConflictLevel = "none" | "low" | "medium" | "high";
 
+export type RecommendationSetId = "set-1" | "set-2" | "set-3";
+
 export type TypographyStyle =
   | "neutral-sans"
   | "editorial-serif"
@@ -191,4 +193,15 @@ export interface GeneratedFiles {
   "claude-code-prompt.md": string;
   "cursor-prompt.md": string;
   "settings.json": string;
+}
+
+export interface ExportSpecV1 {
+  schemaVersion: 1;
+  language: LanguageCode;
+  visualPresetId: string;
+  colorPaletteId: string;
+  translationMode: TranslationMode;
+  normalizedToneTags: string[];
+  selectedRecommendationSet: RecommendationSetId | null;
+  isCustomizedFromRecommendation: boolean;
 }

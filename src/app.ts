@@ -14,8 +14,9 @@ import {
   normalizeConflict,
   structureToYaml,
 } from "./engine/translateFeeling";
+import { buildExportSpecV1 } from "./exportSpec";
 import { initAnalytics, refreshAnalyticsConsentUi, trackEvent } from "./analytics";
-import { buildGeneratedFiles, downloadExportZip, downloadTextFile } from "./zip/buildZip";
+import { buildGeneratedFiles, downloadBlob, downloadTextFile, exportZipFileName } from "./zip/buildZip";
 
 let rootElement: HTMLElement;
 let state = createInitialState("ja");
@@ -25,10 +26,28 @@ let lastConflictEventKey = "";
 let lastExportCtaViewKey = "";
 let isCustomizeOpen = false;
 let isAgentOutputOpen = false;
+let isPurchaseConfirmOpen = false;
+let purchaseMessage = "";
+let checkoutSessionId: string | null = null;
+let checkoutNotice: CheckoutNotice = { status: "idle", message: "" };
 const rejectedVisuals = new Set<string>();
 
 export function mountApp(root: HTMLElement): void {
   rootElement = root;
+  const checkoutReturn = consumeCheckoutReturnUrl();
+  if (checkoutReturn.status === "success") {
+    checkoutSessionId = checkoutReturn.sessionId;
+    checkoutNotice = {
+      status: "verifying",
+      message: checkoutText(state.language).verifying,
+    };
+  } else if (checkoutReturn.status === "cancelled") {
+    checkoutNotice = {
+      status: "cancelled",
+      message: checkoutText(state.language).cancelled,
+    };
+  }
+
   initAnalytics();
   rootElement.addEventListener("click", handleClick);
   rootElement.addEventListener("input", handleInput);
@@ -36,7 +55,21 @@ export function mountApp(root: HTMLElement): void {
   rootElement.addEventListener("toggle", handleToggle, true);
   render();
   trackEvent("mdmaker_view", analyticsStateParams());
+
+  if (checkoutReturn.status === "success") {
+    void verifyAndDownloadPaidExport(checkoutReturn.sessionId);
+  }
 }
+
+interface CheckoutNotice {
+  status: "idle" | "verifying" | "ready" | "downloading" | "error" | "cancelled";
+  message: string;
+}
+
+type CheckoutReturn =
+  | { status: "none" }
+  | { status: "cancelled" }
+  | { status: "success"; sessionId: string };
 
 function createInitialState(language: LanguageCode): MakerState {
   const baseState = {
@@ -105,6 +138,8 @@ function render(): void {
           </div>
         </section>
 
+        ${renderCheckoutNotice()}
+
         <section class="maker-section" id="maker" aria-labelledby="maker-title">
           <div class="maker-heading">
             <div>
@@ -151,6 +186,29 @@ function render(): void {
 
   updateGeneratedViews();
   refreshAnalyticsConsentUi();
+}
+
+function renderCheckoutNotice(): string {
+  if (checkoutNotice.status === "idle") {
+    return "";
+  }
+
+  const text = checkoutText(state.language);
+  const canDownload = checkoutNotice.status === "ready" && Boolean(checkoutSessionId);
+  const action = canDownload
+    ? `<button class="secondary-button" type="button" data-action="download-paid-export">${text.downloadAgain}</button>`
+    : "";
+
+  return `
+    <section class="checkout-notice checkout-notice--${checkoutNotice.status}" id="checkoutNotice" role="status" aria-live="polite">
+      <div>
+        <p class="eyebrow">${text.eyebrow}</p>
+        <h2>${text.title}</h2>
+        <p>${checkoutNotice.message}</p>
+      </div>
+      ${action}
+    </section>
+  `;
 }
 
 function renderAnalyticsPrivacy(): string {
@@ -537,6 +595,8 @@ function handleClick(event: MouseEvent): void {
     state.selectedColorPalette = paletteId;
     state.selectedRecommendationSet = setId;
     state.isCustomizedFromRecommendation = false;
+    isPurchaseConfirmOpen = false;
+    purchaseMessage = "";
     refreshFallbackStructure();
     trackEvent("recommended_set_select", {
       ...analyticsStateParams(),
@@ -584,7 +644,26 @@ function handleClick(event: MouseEvent): void {
   }
 
   if (action === "paid-export") {
-    void requestCheckoutOrDownload();
+    openPurchaseConfirm();
+    return;
+  }
+
+  if (action === "close-purchase-confirm") {
+    isPurchaseConfirmOpen = false;
+    purchaseMessage = "";
+    updateInteractiveViewsPreservingScroll();
+    return;
+  }
+
+  if (action === "start-checkout") {
+    void requestCheckoutSession();
+    return;
+  }
+
+  if (action === "download-paid-export") {
+    if (checkoutSessionId) {
+      void downloadPaidExport(checkoutSessionId);
+    }
     return;
   }
 
@@ -730,17 +809,43 @@ async function copyStructure(): Promise<void> {
   }
 }
 
-async function requestCheckoutOrDownload(): Promise<void> {
-  const t = getDictionary(state.language);
+function openPurchaseConfirm(): void {
+  isPurchaseConfirmOpen = true;
+  purchaseMessage = "";
+  updateInteractiveViewsPreservingScroll();
+}
+
+function updateInteractiveViewsPreservingScroll(): void {
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  const previousOverflowAnchor = document.documentElement.style.overflowAnchor;
+  document.documentElement.style.overflowAnchor = "none";
+  updateInteractiveViews();
+  window.scrollTo(scrollX, scrollY);
+  window.requestAnimationFrame(() => {
+    window.scrollTo(scrollX, scrollY);
+    document.documentElement.style.overflowAnchor = previousOverflowAnchor;
+  });
+}
+
+async function requestCheckoutSession(): Promise<void> {
+  const text = purchaseText(state.language);
   const zipAnalyticsParams = {
     ...analyticsStateParams(),
     exportType: "zip_export" as const,
   };
+  const accepted = rootElement.querySelector<HTMLInputElement>("#purchaseTermsAccepted")?.checked === true;
+
+  if (!accepted) {
+    setPurchaseMessage(text.acceptRequired);
+    return;
+  }
 
   trackEvent("zip_export_click", zipAnalyticsParams);
   trackEvent("export_cta_click", {
     ...zipAnalyticsParams,
   });
+  setPurchaseMessage(text.creatingCheckout);
 
   try {
     const response = await fetch("/api/create-checkout-session", {
@@ -749,8 +854,8 @@ async function requestCheckoutOrDownload(): Promise<void> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        language: state.language,
-        maker: state.maker,
+        locale: state.language,
+        exportSpec: buildExportSpecV1(state),
       }),
     });
 
@@ -765,16 +870,77 @@ async function requestCheckoutOrDownload(): Promise<void> {
       }
     }
   } catch {
-    // Static Vite preview and missing Stripe config intentionally fall through to ZIP generation.
+    trackEvent("client_exception", { errorCode: "checkout_unavailable" });
   }
 
-  await downloadExportZip(state);
-  trackEvent("zip_export_download", {
-    ...zipAnalyticsParams,
-    stripeEnabled: false,
-    fileCount: Object.keys(buildGeneratedFiles(state)).length,
-  });
-  setStatus(t.checkoutUnavailable);
+  setPurchaseMessage(text.checkoutUnavailable);
+}
+
+async function verifyAndDownloadPaidExport(sessionId: string): Promise<void> {
+  checkoutNotice = {
+    status: "verifying",
+    message: checkoutText(state.language).verifying,
+  };
+  updateCheckoutNotice();
+
+  try {
+    const response = await fetch(`/api/checkout-status?session_id=${encodeURIComponent(sessionId)}`);
+    const data = (await response.json()) as { paid?: boolean };
+
+    if (!response.ok || data.paid !== true) {
+      throw new Error("checkout status unavailable");
+    }
+
+    await downloadPaidExport(sessionId);
+  } catch {
+    checkoutNotice = {
+      status: "error",
+      message: checkoutText(state.language).downloadFailed,
+    };
+    updateCheckoutNotice();
+  }
+}
+
+async function downloadPaidExport(sessionId: string): Promise<void> {
+  checkoutNotice = {
+    status: "downloading",
+    message: checkoutText(state.language).downloading,
+  };
+  updateCheckoutNotice();
+
+  try {
+    const response = await fetch("/api/download-export", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+
+    if (!response.ok) {
+      throw new Error("download unavailable");
+    }
+
+    const blob = await response.blob();
+    downloadBlob(blob, exportZipFileName);
+    checkoutNotice = {
+      status: "ready",
+      message: checkoutText(state.language).ready,
+    };
+    updateCheckoutNotice();
+    trackEvent("zip_export_download", {
+      ...analyticsStateParams(),
+      exportType: "zip_export",
+      stripeEnabled: true,
+      fileCount: Object.keys(buildGeneratedFiles(state)).length,
+    });
+  } catch {
+    checkoutNotice = {
+      status: "error",
+      message: checkoutText(state.language).downloadFailed,
+    };
+    updateCheckoutNotice();
+  }
 }
 
 async function loadSettingsFile(file: File): Promise<void> {
@@ -1022,6 +1188,42 @@ function renderExportCtaBlock(): string {
         <button class="secondary-button primary-button--full" type="button" data-action="open-customize-details">${t.customizeDetailsTitle}</button>
       </div>
       <p class="button-note">${t.zipIncludes}</p>
+      ${isPurchaseConfirmOpen ? renderPurchaseConfirmPanel() : ""}
+    </section>
+  `;
+}
+
+function renderPurchaseConfirmPanel(): string {
+  const text = purchaseText(state.language);
+  const price = state.language === "en" ? "$3" : "¥300";
+
+  return `
+    <section class="purchase-confirm" aria-labelledby="purchase-confirm-title">
+      <div class="purchase-confirm__head">
+        <div>
+          <p class="eyebrow">${text.eyebrow}</p>
+          <h4 id="purchase-confirm-title">${text.title}</h4>
+        </div>
+        <button class="secondary-button purchase-confirm__close" type="button" data-action="close-purchase-confirm">${text.close}</button>
+      </div>
+      <dl class="purchase-summary">
+        <div><dt>${text.product}</dt><dd>BORINEF md maker Export Pack</dd></div>
+        <div><dt>${text.files}</dt><dd>9 files</dd></div>
+        <div><dt>${text.purchaseType}</dt><dd>${text.oneTime}</dd></div>
+        <div><dt>${text.price}</dt><dd>${price}</dd></div>
+      </dl>
+      <p class="purchase-confirm__note">${text.note}</p>
+      <div class="legal-link-row">
+        <a href="/legal/terms.html" target="_blank" rel="noreferrer">${text.terms}</a>
+        <a href="/legal/privacy.html" target="_blank" rel="noreferrer">${text.privacy}</a>
+        <a href="/legal/commercial-transactions.html" target="_blank" rel="noreferrer">${text.commercial}</a>
+      </div>
+      <label class="purchase-checkbox">
+        <input id="purchaseTermsAccepted" type="checkbox" />
+        <span>${text.accept}</span>
+      </label>
+      <p class="purchase-confirm__status" id="purchasePanelStatus" role="status" aria-live="polite">${purchaseMessage}</p>
+      <button class="primary-button primary-button--full" type="button" data-action="start-checkout">${text.continue}</button>
     </section>
   `;
 }
@@ -1222,6 +1424,132 @@ function trackConflictIfNeeded(): void {
 
   lastConflictEventKey = key;
   trackEvent("conflict_detected", analyticsStateParams());
+}
+
+function consumeCheckoutReturnUrl(): CheckoutReturn {
+  const url = new URL(window.location.href);
+  const checkout = url.searchParams.get("checkout");
+  const sessionId = normalizeCheckoutSessionId(url.searchParams.get("session_id"));
+
+  if (checkout || url.searchParams.has("session_id")) {
+    url.searchParams.delete("checkout");
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  if (checkout === "success" && sessionId) {
+    return { status: "success", sessionId };
+  }
+
+  if (checkout === "cancelled") {
+    return { status: "cancelled" };
+  }
+
+  return { status: "none" };
+}
+
+function normalizeCheckoutSessionId(value: string | null): string | null {
+  if (!value || value.length > 200) {
+    return null;
+  }
+  return /^cs_(test|live)_[A-Za-z0-9_]+$/.test(value) ? value : null;
+}
+
+function setPurchaseMessage(message: string): void {
+  purchaseMessage = message;
+  const status = rootElement.querySelector<HTMLElement>("#purchasePanelStatus");
+  if (status) {
+    status.textContent = message;
+  }
+}
+
+function updateCheckoutNotice(): void {
+  const existing = rootElement.querySelector<HTMLElement>("#checkoutNotice");
+  const next = renderCheckoutNotice();
+
+  if (existing) {
+    if (next) {
+      existing.outerHTML = next;
+    } else {
+      existing.remove();
+    }
+    return;
+  }
+
+  if (next) {
+    const intro = rootElement.querySelector<HTMLElement>(".intro-band");
+    intro?.insertAdjacentHTML("afterend", next);
+  }
+}
+
+function purchaseText(language: LanguageCode) {
+  if (language === "en") {
+    return {
+      eyebrow: "Purchase confirmation",
+      title: "Export Pack",
+      close: "Close",
+      product: "Product",
+      files: "Files",
+      purchaseType: "Purchase",
+      oneTime: "One-time purchase",
+      price: "Price",
+      note: "After Stripe payment is confirmed, the ZIP is generated server-side and downloads immediately.",
+      terms: "Terms",
+      privacy: "Privacy Policy",
+      commercial: "Legal disclosure",
+      accept: "I have reviewed and agree to the terms and refund conditions.",
+      acceptRequired: "Please confirm the purchase terms before continuing.",
+      creatingCheckout: "Creating a secure Stripe Checkout session.",
+      checkoutUnavailable: "Checkout is unavailable. Please try again after payment settings are complete.",
+      continue: "Continue to Stripe",
+    };
+  }
+
+  return {
+    eyebrow: "購入確認",
+    title: "Export Pack",
+    close: "閉じる",
+    product: "商品",
+    files: "ファイル",
+    purchaseType: "購入",
+    oneTime: "1回限りの購入",
+    price: "価格",
+    note: "Stripe決済の確認後、サーバー側でZIPを生成してすぐにダウンロードします。",
+    terms: "利用規約",
+    privacy: "プライバシーポリシー",
+    commercial: "特定商取引法に基づく表記",
+    accept: "利用規約と返品・返金条件を確認し、同意します。",
+    acceptRequired: "続行する前に購入条件への同意を確認してください。",
+    creatingCheckout: "安全なStripe Checkoutを作成しています。",
+    checkoutUnavailable: "Checkoutを利用できません。決済設定完了後に再度お試しください。",
+    continue: "Stripeへ進む",
+  };
+}
+
+function checkoutText(language: LanguageCode) {
+  if (language === "en") {
+    return {
+      eyebrow: "Checkout",
+      title: "Paid export",
+      verifying: "Verifying your payment.",
+      downloading: "Preparing your ZIP download.",
+      ready: "Your ZIP is ready. You can download it again from this page while it remains open.",
+      cancelled: "Checkout was cancelled. No payment was completed.",
+      downloadFailed: "Payment could not be verified or the ZIP could not be generated.",
+      downloadAgain: "Download ZIP again",
+    };
+  }
+
+  return {
+    eyebrow: "Checkout",
+    title: "有料Export",
+    verifying: "決済結果を確認しています。",
+    downloading: "ZIPダウンロードを準備しています。",
+    ready: "ZIPの準備ができました。このページを開いている間は再ダウンロードできます。",
+    cancelled: "Checkoutはキャンセルされました。決済は完了していません。",
+    downloadFailed: "決済確認またはZIP生成に失敗しました。",
+    downloadAgain: "ZIPを再ダウンロード",
+  };
 }
 
 async function copyText(text: string): Promise<boolean> {
