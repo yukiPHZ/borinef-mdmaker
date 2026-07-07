@@ -166,8 +166,8 @@ function renderAnalyticsPrivacy(): string {
         <p id="market-observer-consent-status" class="analytics-privacy__status" role="status" aria-live="polite"></p>
       </div>
       <div class="analytics-privacy__actions">
-        <button id="market-observer-consent-allow" class="primary-button" type="button">許可する</button>
-        <button id="market-observer-consent-deny" class="secondary-button" type="button">許可しない</button>
+        <button id="market-observer-consent-allow" class="primary-button market-observer-consent-button" data-action="allow" type="button">許可する</button>
+        <button id="market-observer-consent-deny" class="secondary-button market-observer-consent-button" data-action="deny" type="button">許可しない</button>
       </div>
     </section>
   `;
