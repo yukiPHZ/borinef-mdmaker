@@ -12,33 +12,35 @@
 
   const MESSAGES = {
     ja: {
-      heading: "匿名の利用状況の計測にご協力ください",
+      heading: "利用状況の解析について",
       body: [
-        "DAKEでは、サイトやツールを改善するため、Google Analyticsを使用して匿名の利用状況を計測しています。",
-        "入力した文章、変換結果、氏名、メールアドレス、電話番号、住所、購入情報は送信しません。",
-        "許可しなくても、すべての機能をそのまま利用できます。",
+        "このサイトでは、改善のために利用状況の解析を行います。",
+        "解析は、あなたが許可した場合のみ有効になります。",
+        "設定はいつでも変更できます。",
       ],
       allow: "許可する",
       deny: "許可しない",
       learnMore: "詳しく見る",
-      changeSettings: "解析設定を変更",
+      changeSettings: "解析設定",
+      close: "閉じる",
       statusGranted: "アクセス解析：許可済み",
       statusDenied: "アクセス解析：利用しない",
       statusUnknown: "アクセス解析：未選択",
-      statusUnavailable: "アクセス解析：利用しない",
+      statusUnavailable: "設定を保存できないため、解析は無効です",
       gpcNotice: "ブラウザのプライバシー設定により解析を無効にしています。",
     },
     en: {
-      heading: "Help us improve with anonymous usage analytics",
+      heading: "About usage analytics",
       body: [
-        "DAKE uses Google Analytics to measure anonymous usage and improve its sites and tools.",
-        "We do not send your input, output, name, email address, phone number, address, or purchase information.",
-        "You can use every feature without allowing analytics.",
+        "This site uses usage analytics to improve the site.",
+        "Analytics are enabled only if you allow them.",
+        "You can change your settings at any time.",
       ],
-      allow: "Allow analytics",
+      allow: "Allow",
       deny: "Do not allow",
       learnMore: "Learn more",
-      changeSettings: "Change analytics settings",
+      changeSettings: "Analytics settings",
+      close: "Close",
       statusGranted: "Analytics: allowed",
       statusDenied: "Analytics: disabled",
       statusUnknown: "Analytics: not selected",
@@ -102,26 +104,39 @@
     return lang.startsWith("ja") ? "ja" : "en";
   }
 
+  function messagesFor(options) {
+    const locale = localeFor(options);
+    const defaults = MESSAGES[locale] || MESSAGES.en;
+    const overrides = options && options.messages;
+    if (!overrides || typeof overrides !== "object") return defaults;
+    return {
+      ...defaults,
+      ...overrides,
+      body: Array.isArray(overrides.body) && overrides.body.every((line) => typeof line === "string")
+        ? overrides.body
+        : defaults.body,
+    };
+  }
+
   function ensureStyle(document) {
     if (!document || document.getElementById(STYLE_ID)) return;
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = [
-      ".market-observer-consent-banner{--mo-consent-allow-bg:#2563EB;--mo-consent-allow-text:#FFFFFF;--mo-consent-allow-hover-bg:#1D4ED8;--mo-consent-deny-bg:#FFFFFF;--mo-consent-deny-text:currentColor;--mo-consent-deny-border:#6B7280;--mo-consent-focus-ring:#2563EB;position:fixed;left:16px;right:16px;bottom:16px;z-index:2147483000;background:#fff;color:#111;border:1px solid #111;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:16px;max-width:760px;margin:0 auto;font:14px/1.6 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
-      ".market-observer-consent-banner h2{font-size:16px;line-height:1.35;margin:0 0 8px;font-weight:700;letter-spacing:0}",
+      ".market-observer-consent-banner{position:fixed;inset:auto 16px 16px;z-index:2147483000;box-sizing:border-box;background:var(--mo-consent-background,Canvas);color:var(--mo-consent-foreground,CanvasText);border:1px solid var(--mo-consent-border,currentColor);border-radius:var(--mo-consent-radius,0);padding:var(--mo-consent-spacing,20px);max-width:760px;max-height:calc(100dvh - 32px);overflow:auto;margin:0 auto;font-family:inherit;font-size:14px;line-height:1.7;overflow-wrap:anywhere}",
+      ".market-observer-consent-banner h2{font-size:1em;line-height:1.5;margin:0 0 10px;font-weight:600;letter-spacing:0}",
       ".market-observer-consent-banner p{margin:0 0 6px}",
-      ".market-observer-consent-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}",
-      ".market-observer-consent-button{appearance:none;border:1px solid transparent;border-radius:4px;padding:9px 16px;font:inherit;font-size:14px;line-height:1.25;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none}",
-      ".market-observer-consent-button[data-action='allow']{background:var(--mo-consent-allow-bg);color:var(--mo-consent-allow-text);border-color:var(--mo-consent-allow-bg);font-weight:700}",
-      ".market-observer-consent-button[data-action='allow']:hover{background:var(--mo-consent-allow-hover-bg);border-color:var(--mo-consent-allow-hover-bg)}",
-      ".market-observer-consent-button[data-action='deny']{background:var(--mo-consent-deny-bg);color:var(--mo-consent-deny-text);border-color:var(--mo-consent-deny-border);font-weight:700}",
-      ".market-observer-consent-button[data-action='deny']:hover{background:#F9FAFB}",
-      ".market-observer-consent-button[data-action='details']{background:transparent;color:inherit;border-color:transparent;font-weight:400;text-decoration:underline;text-underline-offset:2px}",
-      ".market-observer-consent-button:hover,.market-observer-consent-button:focus-visible{outline:2px solid var(--mo-consent-focus-ring);outline-offset:2px}",
-      ".market-observer-consent-button:disabled{opacity:.55;cursor:not-allowed}",
-      ".market-observer-consent-change{appearance:none;border:1px solid currentColor;background:transparent;color:inherit;border-radius:4px;padding:6px 10px;font:inherit;cursor:pointer}",
-      ".market-observer-consent-change:hover,.market-observer-consent-change:focus-visible{outline:2px solid currentColor;outline-offset:2px}",
-      "@media (max-width:640px){.market-observer-consent-banner{left:8px;right:8px;bottom:8px;padding:12px;font-size:13px}.market-observer-consent-actions{display:grid;grid-template-columns:1fr}.market-observer-consent-actions .market-observer-consent-button{width:100%}}",
+      ".market-observer-consent-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}",
+      ".market-observer-consent-button{appearance:none;box-sizing:border-box;border:1px solid var(--mo-consent-border,currentColor);border-radius:var(--mo-consent-radius,0);padding:10px 18px;font:inherit;font-size:14px;font-weight:500;line-height:1.5;min-height:44px;background:var(--mo-consent-background,Canvas);color:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none}",
+      ".market-observer-consent-button[data-action='allow'],.market-observer-consent-button[data-action='deny']{flex:1 1 140px}",
+      ".market-observer-consent-button[data-action='details'],.market-observer-consent-button[data-action='close']{background:transparent;border-color:transparent;text-decoration:underline;text-underline-offset:3px}",
+      ".market-observer-consent-button:hover{text-decoration:underline;text-underline-offset:3px}",
+      ".market-observer-consent-button:focus-visible,.market-observer-consent-change:focus-visible{outline:2px solid var(--mo-consent-focus,currentColor);outline-offset:4px}",
+      ".market-observer-consent-button:disabled{opacity:.6;cursor:not-allowed}",
+      ".market-observer-consent-change{display:inline;position:static;border:0;background:none;box-shadow:none;border-radius:0;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:.25em;cursor:pointer}",
+      "@media(max-width:480px){.market-observer-consent-banner{inset:auto 8px 8px;max-height:calc(100dvh - 16px);padding:16px}.market-observer-consent-actions{display:grid;grid-template-columns:1fr 1fr}.market-observer-consent-button{padding:10px 8px;min-width:0}}",
+      "@media(prefers-reduced-motion:reduce){.market-observer-consent-banner{scroll-behavior:auto}.market-observer-consent-button,.market-observer-consent-change{transition:none;animation:none}}",
+      ".market-observer-consent-banner.market-observer-consent-quiet{position:static;inset:auto;z-index:auto;max-height:none;margin:24px auto;overflow:visible}",
     ].join("\n");
     (document.head || document.documentElement).appendChild(style);
   }
@@ -129,6 +144,8 @@
   function removeBanner(document) {
     const existing = document && document.getElementById(BANNER_ID);
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    const entry = document && document.querySelector("." + CHANGE_BUTTON_CLASS);
+    if (entry) entry.setAttribute("aria-expanded", "false");
   }
 
   function openDetails(options) {
@@ -149,11 +166,11 @@
     const document = root.document;
     const ok = writeConsent(state);
     if (!ok) {
-      updateExistingControls(localeFor(options), "unavailable");
+      updateExistingControls(options, "unavailable");
       return false;
     }
     removeBanner(document);
-    updateExistingControls(localeFor(options), state);
+    updateExistingControls(options, state);
     if (!options || options.reload !== false) root.location.reload();
     return true;
   }
@@ -184,13 +201,14 @@
     ensureStyle(document);
     removeBanner(document);
     const locale = localeFor(options);
-    const text = MESSAGES[locale];
+    const text = messagesFor(options);
     const consent = readConsent();
-    if (!force && consent.state !== "unknown" && !consent.gpc) return null;
+    if (!force && consent.state !== "unknown") return null;
 
     const banner = document.createElement("section");
     banner.id = BANNER_ID;
     banner.className = "market-observer-consent-banner";
+    if (options && options.presentation === "quiet") banner.className += " market-observer-consent-quiet";
     banner.setAttribute("role", "region");
     banner.setAttribute("aria-live", "polite");
     banner.setAttribute("aria-label", text.heading);
@@ -199,7 +217,14 @@
     heading.textContent = text.heading;
     banner.appendChild(heading);
 
-    if (consent.gpc) {
+    if (force) {
+      const status = document.createElement("p");
+      status.id = "market-observer-consent-panel-status";
+      status.textContent = statusText(consent, text);
+      banner.appendChild(status);
+    }
+
+    if (consent.gpc && !force) {
       const notice = document.createElement("p");
       notice.textContent = text.gpcNotice;
       banner.appendChild(notice);
@@ -215,23 +240,49 @@
     const allow = button(document, text.allow, "allow");
     const deny = button(document, text.deny, "deny");
     const details = button(document, text.learnMore, "details");
-    if (consent.gpc) allow.disabled = true;
+    if (consent.gpc || consent.state === "unavailable") allow.disabled = true;
+    if (consent.state === "unavailable") deny.disabled = true;
     allow.addEventListener("click", () => choose("granted", options || {}));
     deny.addEventListener("click", () => choose("denied", options || {}));
     details.addEventListener("click", () => openDetails(options || {}));
     actions.appendChild(allow);
     actions.appendChild(deny);
     actions.appendChild(details);
+    if (force) {
+      const close = button(document, text.close, "close");
+      const closePanel = () => {
+        removeBanner(document);
+        const entry = document.querySelector("." + CHANGE_BUTTON_CLASS);
+        if (entry && typeof entry.focus === "function") entry.focus();
+      };
+      close.addEventListener("click", closePanel);
+      banner.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") { event.preventDefault(); closePanel(); }
+      });
+      actions.appendChild(close);
+    }
     banner.appendChild(actions);
-    document.body.appendChild(banner);
+    const container = options && options.presentation === "quiet" && options.containerSelector
+      ? document.querySelector(options.containerSelector) : null;
+    (container || document.body).appendChild(banner);
+    const entry = document.querySelector("." + CHANGE_BUTTON_CLASS);
+    if (entry) entry.setAttribute("aria-expanded", "true");
+    if (force && typeof deny.focus === "function") (allow.disabled ? deny : allow).focus();
     return banner;
   }
 
-  function updateExistingControls(locale, stateOverride) {
+  function statusText(consent, text) {
+    if (consent.gpc) return text.gpcNotice;
+    return ({ granted: text.statusGranted, denied: text.statusDenied, unavailable: text.statusUnavailable })[consent.state] || text.statusUnknown;
+  }
+
+  function updateExistingControls(options, stateOverride) {
     const document = root.document;
     if (!document) return;
-    const text = MESSAGES[locale] || MESSAGES.en;
+    const text = messagesFor(options);
     const consent = stateOverride ? { state: stateOverride, gpc: hasGpc() } : readConsent();
+    const panelStatus = document.querySelector("#market-observer-consent-panel-status");
+    if (panelStatus) panelStatus.textContent = statusText(consent, text);
     const status = document.querySelector("#market-observer-consent-status");
     const allowButton = document.querySelector("#market-observer-consent-allow");
     const denyButton = document.querySelector("#market-observer-consent-deny");
@@ -272,7 +323,6 @@
   function bindExistingControls(options) {
     const document = root.document;
     if (!document) return;
-    const locale = localeFor(options);
     const allowButton = document.querySelector("#market-observer-consent-allow");
     const denyButton = document.querySelector("#market-observer-consent-deny");
     if (allowButton && !allowButton.dataset.marketObserverConsentBound) {
@@ -283,21 +333,26 @@
       denyButton.dataset.marketObserverConsentBound = "true";
       denyButton.addEventListener("click", () => choose("denied", options || {}));
     }
-    updateExistingControls(locale);
+    updateExistingControls(options);
   }
 
   function ensureChangeControl(options) {
     const document = root.document;
     if (!document || document.querySelector(`.${CHANGE_BUTTON_CLASS}`)) return;
     const locale = localeFor(options);
-    const text = MESSAGES[locale] || MESSAGES.en;
-    const container = document.querySelector((options && options.settingsContainerSelector) || ".analytics-privacy-body") || document.querySelector("footer") || document.body;
+    const text = messagesFor(options);
+    const container = document.querySelector((options && options.settingsContainerSelector) || "footer") || document.querySelector("footer");
     if (!container) return;
-    const action = document.createElement("button");
-    action.type = "button";
+    const action = document.createElement("a");
+    action.setAttribute("href", "#" + BANNER_ID);
+    action.setAttribute("aria-controls", BANNER_ID);
+    action.setAttribute("aria-expanded", "false");
     action.className = CHANGE_BUTTON_CLASS;
     action.textContent = text.changeSettings;
-    action.addEventListener("click", () => showBanner(Object.assign({}, options, { reload: true }), true));
+    action.addEventListener("click", (event) => {
+      event.preventDefault();
+      showBanner(Object.assign({}, options, { reload: true }), true);
+    });
     container.appendChild(action);
   }
 
